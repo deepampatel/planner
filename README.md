@@ -41,7 +41,15 @@ For the curious:
 | **Design** | Notion-inspired, earthy palette |
 | **Infra** | Zero external dependencies — no Redis, no Postgres, no queues |
 
-## Run it yourself
+## Deploy in one command
+
+```bash
+docker compose up
+```
+
+Open [localhost:3000](http://localhost:3000). That's it. Data persists across restarts.
+
+## Run locally (without Docker)
 
 ```bash
 # Prerequisites: Go 1.24+, Node 22+, pnpm

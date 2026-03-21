@@ -1,0 +1,20 @@
+services:
+  planfast:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - planfast-data:/app/data
+    environment:
+      - JWT_SECRET=change-me-in-production
+      - BACKEND_URL=http://localhost:8080
+      - ALLOWED_ORIGINS=http://localhost:3000
+      - APP_URL=http://localhost:3000
+      # Optional: Google/Apple sign-in
+      # - GOOGLE_CLIENT_ID=your-google-client-id
+      # - APPLE_CLIENT_ID=your-apple-client-id
+      # - NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+    restart: unless-stopped
+
+volumes:
+  planfast-data:
