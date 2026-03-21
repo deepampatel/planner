@@ -1,0 +1,2 @@
+ALTER TABLE participants ADD COLUMN email TEXT DEFAULT '';
+ALTER TABLE participants ADD COLUMN has_responded INTEGER NOT NULL DEFAULT 0;

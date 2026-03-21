@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Notion-inspired earthy palette — warm parchment, terracotta, sage */
+    --background: 40 18% 95%;
+    --foreground: 42 10% 16%;
+    --surface: 40 25% 99%;
+    --card: 40 25% 99%;
+    --card-foreground: 42 10% 16%;
+    --muted: 38 16% 89%;
+    --muted-foreground: 38 6% 45%;
+    --tertiary: 36 5% 58%;
+    --primary: 20 65% 48%;
+    --primary-foreground: 40 20% 98%;
+    --accent: 38 18% 90%;
+    --accent-foreground: 42 10% 16%;
+    --border: 36 12% 84%;
+    --ring: 20 65% 48%;
+
+    /* Availability cells — sage green + honey amber */
+    --cell-empty: 38 12% 93%;
+    --cell-free: 152 32% 46%;
+    --cell-maybe: 38 70% 52%;
+    --cell-none: 36 8% 88%;
+
+    /* Heatmap — terracotta → amber → sage */
+    --heatmap-low: 8 50% 54%;
+    --heatmap-medium-low: 25 60% 50%;
+    --heatmap-medium-high: 40 68% 50%;
+    --heatmap-high: 152 32% 46%;
+  }
+
+  .dark {
+    /* Warm dark mode — brown-blacks, not blue-blacks */
+    --background: 30 10% 7%;
+    --foreground: 36 12% 90%;
+    --surface: 28 8% 12%;
+    --card: 28 8% 12%;
+    --card-foreground: 36 12% 90%;
+    --muted: 28 7% 18%;
+    --muted-foreground: 36 5% 55%;
+    --tertiary: 36 4% 42%;
+    --primary: 20 62% 55%;
+    --primary-foreground: 30 10% 7%;
+    --accent: 28 7% 18%;
+    --accent-foreground: 36 12% 90%;
+    --border: 28 6% 22%;
+    --ring: 20 62% 55%;
+
+    --cell-empty: 28 5% 16%;
+    --cell-free: 152 28% 36%;
+    --cell-maybe: 38 55% 42%;
+    --cell-none: 28 5% 19%;
+
+    --heatmap-low: 8 42% 42%;
+    --heatmap-medium-low: 25 50% 40%;
+    --heatmap-medium-high: 40 58% 42%;
+    --heatmap-high: 152 28% 36%;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.12);
+  }
+}
+
+/* Grid interaction */
+.grid-canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--background) / 0.4),
+    transparent
+  );
+  animation: shimmer 2s ease-in-out infinite;
+}
