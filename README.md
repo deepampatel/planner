@@ -1,122 +1,64 @@
 # plan.fast
 
-The fastest way to find when your group is free. Create a plan, share the link, everyone marks their availability, and the system finds the best overlap.
+I built this because every time my friends and I try to plan something — a dinner, a trip, a movie — we go in circles. Someone drops a "let's do something this weekend" in the group chat. Twenty messages later, nobody knows when anyone's free, half the group hasn't replied, and the plan dies.
+
+We've all been there. The plan doesn't fail because nobody wants to go. It fails because coordinating 6 people over text is pain.
+
+**plan.fast** fixes that. One link. Everyone taps when they're free. Done.
 
 ## How it works
 
-1. **Create** — Name your plan, pick a date range, choose time slots or day blocks
-2. **Share** — Send the link via WhatsApp, native share, or clipboard
-3. **Mark** — Everyone taps/drags to mark when they're free or maybe
-4. **Find** — Heatmap view highlights the best times for the group
+1. **Create a plan** — give it a name, pick dates, share the link
+2. **Friends open the link** — no app download, no sign-up, just tap their name and join
+3. **Everyone marks availability** — tap and drag on a grid, takes 10 seconds
+4. **Best time surfaces automatically** — heatmap shows where the group overlaps
 
-No sign-up required. Works on any device.
+That's it. No back-and-forth. No "does Saturday work?" No forgotten plans.
+
+## Three ways to plan
+
+- **Pick times** — 30-minute slots throughout the day. For dinners, hangouts, meetings.
+- **Pick days** — Morning, afternoon, or evening blocks. For trips, weekend plans.
+- **Custom options** — Free-form poll. "9:45 PM show or 10:55 PM show?" For movies, restaurants, anything with fixed choices.
+
+## The small things that matter
+
+- **No sign-up required** — your friends will actually use it because there's zero friction
+- **Works on any phone** — mobile-first, tap-and-drag grid that feels native
+- **WhatsApp sharing** — one tap to drop the link in your group chat
+- **Nudge people** — see who hasn't responded yet and poke them
+- **Dark mode** — because not everything needs to be bright white at midnight
 
 ## Tech stack
 
-| Layer | Tech |
-|-------|------|
-| **Frontend** | Next.js 14 (App Router), Tailwind CSS 3, Framer Motion |
-| **Backend** | Go (Chi router), SQLite (WAL mode), pure Go driver (modernc.org/sqlite) |
-| **Auth** | Google OAuth + Apple Sign-In (optional, guest-first) |
-| **Design** | Notion-inspired earthy palette — warm parchment, terracotta accents, sage greens |
+For the curious:
 
-## Project structure
+| | |
+|---|---|
+| **Frontend** | Next.js 14, Tailwind CSS, Framer Motion |
+| **Backend** | Go, Chi router, SQLite (WAL mode) |
+| **Auth** | Google + Apple sign-in (optional) |
+| **Design** | Notion-inspired, earthy palette |
+| **Infra** | Zero external dependencies — no Redis, no Postgres, no queues |
 
-```
-planner/
-├── backend/
-│   ├── cmd/server/          # Entry point
-│   ├── internal/
-│   │   ├── config/          # Environment config
-│   │   ├── db/              # SQLite connection + pragmas
-│   │   ├── handler/         # HTTP handlers
-│   │   ├── middleware/       # CORS, auth
-│   │   ├── model/           # Domain types
-│   │   ├── repository/      # Data access layer
-│   │   ├── router/          # Chi route definitions
-│   │   └── service/         # Business logic
-│   └── migrations/          # SQL migrations
-├── frontend/
-│   └── src/
-│       ├── app/             # Next.js pages + API proxy
-│       ├── components/      # UI components
-│       │   ├── auth/        # Google/Apple sign-in
-│       │   ├── grid/        # Availability grid + cells
-│       │   ├── heatmap/     # Group heatmap overlay
-│       │   ├── layout/      # Header, theme toggle
-│       │   ├── plan/        # Create form, plan view, share sheet
-│       │   └── ui/          # Button, input, badge primitives
-│       ├── hooks/           # useAuth, useAvailability, useGridInteraction
-│       ├── lib/             # API client, types, utils, constants
-│       └── providers/       # Theme + auth context
-├── shared/
-└── Makefile
-```
-
-## Getting started
-
-### Prerequisites
-
-- **Go** 1.24+
-- **Node.js** 22+ (via nvm)
-- **pnpm** (via corepack)
-
-### Run locally
+## Run it yourself
 
 ```bash
-# Start both backend and frontend
+# Prerequisites: Go 1.24+, Node 22+, pnpm
+
+# Start everything
 make dev
+
+# Or separately
+cd backend && go run ./cmd/server    # :8080
+cd frontend && pnpm install && pnpm dev  # :3000
 ```
 
-Or run them separately:
+## Why I didn't just use when2meet
 
-```bash
-# Backend (port 8080)
-cd backend && go run ./cmd/server
+I tried. My friends took one look at the UI and closed the tab. If the tool is harder to use than the group chat, nobody will use it.
 
-# Frontend (port 3000)
-cd frontend && pnpm install && pnpm dev
-```
-
-### Build
-
-```bash
-make build-backend    # → backend/bin/server
-make build-frontend   # → frontend/.next/
-```
-
-### Test
-
-```bash
-make test-backend     # Go tests
-make lint-backend     # Go vet
-```
-
-## API routes
-
-All routes are under `/api`:
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/plans` | Create a new plan |
-| `GET` | `/plans/:slug` | Get plan with participants |
-| `POST` | `/plans/:slug/join` | Join as participant |
-| `PUT` | `/plans/:slug/availability` | Update cell availability |
-| `GET` | `/plans/:slug/heatmap` | Get group heatmap data |
-| `POST` | `/plans/:slug/lock` | Lock plan (host only) |
-| `POST` | `/auth/google` | Google OAuth sign-in |
-| `POST` | `/auth/apple` | Apple sign-in |
-| `GET` | `/auth/me` | Current user info |
-| `GET` | `/health` | Health check |
-
-## Architecture notes
-
-- **API proxy**: Next.js catch-all route (`/api/[...path]`) proxies to Go backend — no CORS needed in production
-- **SQLite WAL mode**: Single writer, production pragmas, zero external database dependencies
-- **Grid interaction**: FSM handles tap, drag, and long-press with three states: free (sage green), maybe (amber), clear
-- **Polling**: ETag-based, 3s plan / 5s heatmap, pauses when tab is hidden
-- **Timezone handling**: All times stored as UTC, displayed in user's local timezone
-- **Dark mode**: `next-themes` + CSS custom properties for instant switching
+plan.fast is what when2meet would be if it was built in 2026 for people who plan things on their phones.
 
 ## License
 
