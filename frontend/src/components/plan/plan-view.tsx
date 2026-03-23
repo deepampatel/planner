@@ -220,19 +220,24 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
             </svg>
           </button>
           {showActivity && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 relative">
               {activity.length === 0 ? (
                 <p className="text-tiny text-tertiary">No activity yet.</p>
               ) : (
-                activity.map(entry => (
-                  <div key={entry.id} className="flex items-start gap-2">
-                    <span className="text-tertiary mt-1 shrink-0">&bull;</span>
-                    <p className="text-tiny text-muted-foreground">
-                      {formatAction(entry)}
-                      <span className="text-tertiary ml-1.5">{timeAgo(entry.createdAt)}</span>
-                    </p>
+                <div className="relative pl-4">
+                  {/* Timeline line */}
+                  <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px bg-border" />
+                  <div className="space-y-0.5">
+                    {activity.map(entry => (
+                      <div key={entry.id} className="relative flex items-baseline gap-3 py-1">
+                        {/* Timeline dot */}
+                        <div className="absolute left-[-13px] top-[7px] w-[7px] h-[7px] rounded-full bg-border shrink-0" />
+                        <span className="text-tiny text-muted-foreground flex-1">{formatAction(entry)}</span>
+                        <span className="text-tiny text-tertiary whitespace-nowrap shrink-0">{timeAgo(entry.createdAt)}</span>
+                      </div>
+                    ))}
                   </div>
-                ))
+                </div>
               )}
             </div>
           )}
