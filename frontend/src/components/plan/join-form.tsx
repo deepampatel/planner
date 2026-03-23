@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { setToken } from '@/lib/token-store'
 import { Input } from '@/components/ui/input'
 import { SignInButtons } from '@/components/auth/sign-in-buttons'
 import { useAuth } from '@/hooks/use-auth'
@@ -33,7 +34,7 @@ export function JoinForm({ slug, onJoined }: JoinFormProps) {
         },
       })
 
-      localStorage.setItem(`planfast_token_${slug}`, result.editToken)
+      setToken(`planfast_token_${slug}`, result.editToken)
       onJoined()
     } catch {
       setIsJoining(false)

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import type { Plan, AuditEntry } from '@/lib/types'
 import { apiClient } from '@/lib/api'
+import { getToken } from '@/lib/token-store'
 import { usePlan } from '@/hooks/use-plan'
 import { useEditToken } from '@/hooks/use-edit-token'
 import { Header } from '@/components/layout/header'
@@ -42,7 +43,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
 
   const handleJoined = () => {
     // Re-read token from localStorage after join sets it
-    const newToken = localStorage.getItem(`planfast_token_${slug}`)
+    const newToken = getToken(`planfast_token_${slug}`)
     if (newToken) {
       setEditToken(newToken)
     }

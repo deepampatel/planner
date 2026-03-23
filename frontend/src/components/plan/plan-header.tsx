@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { SignInButtons } from '@/components/auth/sign-in-buttons'
 import { apiClient } from '@/lib/api'
+import { getToken } from '@/lib/token-store'
 import { useAuth } from '@/hooks/use-auth'
 import type { Plan } from '@/lib/types'
 import confetti from 'canvas-confetti'
@@ -39,7 +40,7 @@ export function PlanHeader({ plan, isHost, onShare, onRefetch }: PlanHeaderProps
       return
     }
     try {
-      const hostToken = localStorage.getItem(`planfast_host_${plan.slug}`)
+      const hostToken = getToken(`planfast_host_${plan.slug}`)
       await apiClient(`/plans/${plan.slug}`, {
         method: 'PATCH',
         body: { title: trimmed },
@@ -68,7 +69,7 @@ export function PlanHeader({ plan, isHost, onShare, onRefetch }: PlanHeaderProps
 
     setIsLocking(true)
     try {
-      const hostToken = localStorage.getItem(`planfast_host_${plan.slug}`)
+      const hostToken = getToken(`planfast_host_${plan.slug}`)
       await apiClient(`/plans/${plan.slug}/lock`, {
         method: 'POST',
         editToken: hostToken || '',

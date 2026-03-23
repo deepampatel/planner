@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { getToken, setToken } from '@/lib/token-store'
 
 const TOKEN_PREFIX = 'planfast_token_'
 const HOST_PREFIX = 'planfast_host_'
@@ -11,20 +12,20 @@ export function useEditToken(slug: string) {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_PREFIX + slug)
-    const host = localStorage.getItem(HOST_PREFIX + slug)
+    const token = getToken(TOKEN_PREFIX + slug)
+    const host = getToken(HOST_PREFIX + slug)
     setEditTokenState(token)
     setHostTokenState(host)
     setLoaded(true)
   }, [slug])
 
   const setEditToken = useCallback((token: string) => {
-    localStorage.setItem(TOKEN_PREFIX + slug, token)
+    setToken(TOKEN_PREFIX + slug, token)
     setEditTokenState(token)
   }, [slug])
 
   const setHostToken = useCallback((token: string) => {
-    localStorage.setItem(HOST_PREFIX + slug, token)
+    setToken(HOST_PREFIX + slug, token)
     setHostTokenState(token)
   }, [slug])
 

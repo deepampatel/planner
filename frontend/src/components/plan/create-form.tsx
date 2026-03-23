@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Header } from '@/components/layout/header'
 import { apiClient } from '@/lib/api'
+import { setToken } from '@/lib/token-store'
 import { detectTimezone } from '@/lib/timezone'
 import { APP_NAME, APP_TAGLINE } from '@/lib/constants'
 import type { PlanWithTokens, Granularity, CustomOption } from '@/lib/types'
@@ -74,8 +75,8 @@ export function CreateForm() {
       })
 
       // Store tokens
-      localStorage.setItem(`planfast_token_${result.plan.slug}`, result.editToken)
-      localStorage.setItem(`planfast_host_${result.plan.slug}`, result.hostToken)
+      setToken(`planfast_token_${result.plan.slug}`, result.editToken)
+      setToken(`planfast_host_${result.plan.slug}`, result.hostToken)
 
       router.push(`/plan/${result.plan.slug}`)
     } catch (err) {
