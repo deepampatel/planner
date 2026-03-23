@@ -8,7 +8,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'plan.fast — Stop planning. Start going.',
+  title: 'plann.fast — Stop planning. Start going.',
   description: 'The fastest way to find when your group is free. Share a link, mark availability, done.',
 }
 

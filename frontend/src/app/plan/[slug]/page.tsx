@@ -29,7 +29,7 @@ export async function generateMetadata(
   const dateRange = formatDateRange(plan.dateRangeStart, plan.dateRangeEnd)
 
   return {
-    title: `${plan.title} | plan.fast`,
+    title: `${plan.title} | plann.fast`,
     description: `${plan.participantCount} people planning ${plan.title}. ${dateRange}`,
     openGraph: {
       title: plan.title,

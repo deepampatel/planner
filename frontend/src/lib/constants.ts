@@ -1,4 +1,4 @@
-export const APP_NAME = 'plan.fast'
+export const APP_NAME = 'plann.fast'
 export const APP_TAGLINE = 'Stop planning. Start going.'
 
 export const MAX_DATE_RANGE_DAYS = 28

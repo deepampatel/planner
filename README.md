@@ -1,10 +1,10 @@
-# plan.fast
+# plann.fast
 
 I built this because every time my friends and I try to plan something — a dinner, a trip, a movie — we go in circles. Someone drops a "let's do something this weekend" in the group chat. Twenty messages later, nobody knows when anyone's free, half the group hasn't replied, and the plan dies.
 
 We've all been there. The plan doesn't fail because nobody wants to go. It fails because coordinating 6 people over text is pain.
 
-**plan.fast** fixes that. One link. Everyone taps when they're free. Done.
+**plann.fast** fixes that. One link. Everyone taps when they're free. Done.
 
 ## How it works
 
@@ -66,7 +66,7 @@ cd frontend && pnpm install && pnpm dev  # :3000
 
 I tried. My friends took one look at the UI and closed the tab. If the tool is harder to use than the group chat, nobody will use it.
 
-plan.fast is what when2meet would be if it was built in 2026 for people who plan things on their phones.
+plann.fast is what when2meet would be if it was built in 2026 for people who plan things on their phones.
 
 ## License
 

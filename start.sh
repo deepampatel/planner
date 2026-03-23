@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "Starting plan.fast..."
+echo "Starting plann.fast..."
 
 # Start Go backend in background (uses PORT env var = 8080)
 cd /app/backend
