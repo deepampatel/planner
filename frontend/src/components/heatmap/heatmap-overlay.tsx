@@ -107,6 +107,7 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
                 day: 'numeric',
                 hour: 'numeric',
                 minute: '2-digit',
+                timeZone: 'UTC',
               })}
               {' — '}
               {heatmap.bestSlot.freeParticipants.length} free
@@ -194,6 +195,7 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
               weekday: 'short',
               month: 'short',
               day: 'numeric',
+              timeZone: 'UTC',
             })}
             {' — '}
             {heatmap.bestSlot.freeParticipants.length} free
@@ -206,8 +208,8 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
         <div />
         {dates.map((date, i) => (
           <div key={i} className="text-tiny text-muted-foreground text-center font-medium py-1">
-            <div>{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-            <div>{date.getDate()}</div>
+            <div>{date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</div>
+            <div>{date.getUTCDate()}</div>
           </div>
         ))}
       </div>
