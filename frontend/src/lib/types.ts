@@ -6,7 +6,7 @@ export interface CustomOption {
   description?: string
 }
 export type AvailabilityStatus = 'free' | 'maybe'
-export type CellState = 'free' | 'maybe' | 'clear'
+export type CellState = 'free' | 'maybe' | 'clear' // maybe kept for backward compat with old data
 
 export interface Plan {
   id: number

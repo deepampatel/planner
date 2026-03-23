@@ -103,8 +103,8 @@ func (s *HeatmapService) Compute(ctx context.Context, slug string, filterIDs []i
 			cell.MaybeCount = agg.maybeCount
 		}
 
-		// Score: free = 1.0, maybe = 0.5
-		cell.Score = (float64(cell.FreeCount) + float64(cell.MaybeCount)*0.5) / float64(participantCount)
+		// Score: binary — free counts, everything else doesn't
+		cell.Score = float64(cell.FreeCount) / float64(participantCount)
 		cells = append(cells, cell)
 	}
 

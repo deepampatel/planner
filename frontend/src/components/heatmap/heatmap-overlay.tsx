@@ -153,8 +153,7 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
               })}
               {' — '}
               {heatmap.bestSlot.freeParticipants.length} free
-              {heatmap.bestSlot.maybeParticipants.length > 0 && `, ${heatmap.bestSlot.maybeParticipants.length} maybe`}
-            </p>
+                          </p>
           </div>
         )}
 
@@ -190,7 +189,7 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
                     key={cellKey}
                     className={cn('rounded-sm transition-colors duration-slow', scoreToColor(score))}
                     style={{ minHeight: 36, opacity: scoreToOpacity(score) }}
-                    title={cell ? `${cell.freeCount} free, ${cell.maybeCount} maybe` : 'No data'}
+                    title={cell ? `${cell.freeCount} of ${cell.totalParticipants} free` : 'No data'}
                   />
                 )
               })}
@@ -276,7 +275,7 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
                   key={cellKey}
                   className={cn('rounded-sm transition-colors duration-slow', scoreToColor(score))}
                   style={{ minHeight: 48, opacity: scoreToOpacity(score) }}
-                  title={cell ? `${cell.freeCount} free, ${cell.maybeCount} maybe` : 'No data'}
+                  title={cell ? `${cell.freeCount} of ${cell.totalParticipants} free` : 'No data'}
                 />
               )
             })}

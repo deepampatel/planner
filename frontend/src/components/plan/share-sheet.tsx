@@ -3,16 +3,19 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import type { Participant } from '@/lib/types'
+import type { Participant, BestSlot } from '@/lib/types'
 
 interface ShareSheetProps {
   slug: string
   title: string
   participants?: Participant[]
+  isLocked?: boolean
+  bestSlot?: BestSlot
+  location?: string
   onClose: () => void
 }
 
-export function ShareSheet({ slug, title, participants, onClose }: ShareSheetProps) {
+export function ShareSheet({ slug, title, participants, isLocked, bestSlot, location, onClose }: ShareSheetProps) {
   const [copied, setCopied] = useState(false)
   const url = typeof window !== 'undefined' ? `${window.location.origin}/plan/${slug}` : ''
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
@@ -25,20 +28,20 @@ export function ShareSheet({ slug, title, participants, onClose }: ShareSheetPro
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const shareMessage = isLocked && bestSlot
+    ? `✅ We're going! ${title}\n📅 ${new Date(bestSlot.start).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${location ? `\n📍 ${location}` : ''}\n${url}`
+    : `${title} — mark when you're free\n${url}`
+
   const handleNativeShare = async () => {
     try {
-      await navigator.share({
-        text: `${title} — mark when you're free\n${url}`,
-      })
+      await navigator.share({ text: shareMessage })
     } catch {
       // User cancelled or share failed — ignore
     }
   }
 
   const handleWhatsApp = () => {
-    const msg = `${title} — mark when you're free\n${url}`
-    const encoded = encodeURIComponent(msg)
-    // whatsapp://send works on both iOS and Android with the app installed
+    const encoded = encodeURIComponent(shareMessage)
     window.location.href = `whatsapp://send?text=${encoded}`
   }
 
@@ -71,7 +74,9 @@ export function ShareSheet({ slug, title, participants, onClose }: ShareSheetPro
         {/* Drag handle */}
         <div className="w-9 h-1 rounded-full bg-border mx-auto mb-5" />
 
-        <h3 className="text-heading text-foreground mb-4">Share this plan</h3>
+        <h3 className="text-heading text-foreground mb-4">
+          {isLocked ? 'Share the result' : 'Share this plan'}
+        </h3>
 
         {/* URL + Copy */}
         <div className="flex items-center gap-2 bg-muted rounded-lg p-3 mb-5">
@@ -124,8 +129,8 @@ export function ShareSheet({ slug, title, participants, onClose }: ShareSheetPro
           </div>
         </div>
 
-        {/* Nudge non-responders — only show if there are people who haven't responded */}
-        {nonResponders.length > 0 && (
+        {/* Nudge non-responders — hide when locked */}
+        {!isLocked && nonResponders.length > 0 && (
           <div className="mt-5 pt-5 border-t border-border">
             <div className="flex items-center justify-between mb-3">
               <p className="text-small font-medium text-foreground">

@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import type { Plan, AuditEntry } from '@/lib/types'
+import type { Plan, AuditEntry, BestSlot, HeatmapResponse } from '@/lib/types'
 import { apiClient } from '@/lib/api'
 import { getToken } from '@/lib/token-store'
 import { usePlan } from '@/hooks/use-plan'
 import { useEditToken } from '@/hooks/use-edit-token'
 import { Header } from '@/components/layout/header'
 import { PlanHeader } from './plan-header'
-import { JoinForm } from './join-form'
+import { JoinModal } from './join-modal'
 import { ShareSheet } from './share-sheet'
 import { AvailabilityGrid } from '@/components/grid/availability-grid'
 import { Badge } from '@/components/ui/badge'
@@ -22,12 +22,60 @@ interface PlanViewProps {
   slug: string
 }
 
+// --- Calendar helpers ---
+
+function toICSDate(rfc3339: string): string {
+  return rfc3339.replace(/[-:]/g, '').replace(/\.\d+/, '').replace(/Z$/, '') + 'Z'
+}
+
+function generateICS(title: string, location: string, start: string, end: string): string {
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//plann.fast//EN',
+    'BEGIN:VEVENT',
+    `DTSTART:${toICSDate(start)}`,
+    `DTEND:${toICSDate(end)}`,
+    `SUMMARY:${title}`,
+    location ? `LOCATION:${location}` : '',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n')
+}
+
+function googleCalendarUrl(title: string, location: string, start: string, end: string): string {
+  const dates = `${toICSDate(start)}/${toICSDate(end)}`
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates,
+    ...(location ? { location } : {}),
+  })
+  return `https://calendar.google.com/calendar/event?${params.toString()}`
+}
+
+function downloadICS(title: string, location: string, start: string, end: string) {
+  const ics = generateICS(title, location, start, end)
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${title.replace(/[^a-zA-Z0-9]/g, '-')}.ics`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// --- Component ---
+
 export function PlanView({ initialData, slug }: PlanViewProps) {
   const { editToken, isHost, loaded, setEditToken } = useEditToken(slug)
   const { plan, isRefreshing, refetch } = usePlan({ slug, initialData, editToken })
   const [showShare, setShowShare] = useState(false)
+  const [showJoinModal, setShowJoinModal] = useState(false)
   const [showActivity, setShowActivity] = useState(false)
   const [activity, setActivity] = useState<AuditEntry[]>([])
+  const [bestSlot, setBestSlot] = useState<BestSlot | null>(null)
+  const pendingCellRef = useRef<string | null>(null)
 
   // Progress stats
   const respondedCount = useMemo(
@@ -36,18 +84,31 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
   )
   const totalCount = plan.participantCount
 
+  // Fetch best slot for locked plans (calendar + share)
+  useEffect(() => {
+    if (plan.status !== 'locked') return
+    apiClient<HeatmapResponse>(`/plans/${slug}/heatmap`)
+      .then(data => setBestSlot(data.bestSlot || null))
+      .catch(() => {})
+  }, [plan.status, slug])
+
   if (!loaded) return null
 
   const needsJoin = !editToken
   const isLocked = plan.status === 'locked'
 
   const handleJoined = () => {
-    // Re-read token from localStorage after join sets it
     const newToken = getToken(`planfast_token_${slug}`)
     if (newToken) {
       setEditToken(newToken)
     }
     refetch()
+  }
+
+  // Grid-first join: when user taps a cell without being joined
+  const handlePreviewTap = (cellKey: string) => {
+    pendingCellRef.current = cellKey
+    setShowJoinModal(true)
   }
 
   const fetchActivity = async () => {
@@ -64,18 +125,12 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
 
   const formatAction = (entry: AuditEntry): string => {
     switch (entry.action) {
-      case 'plan_created':
-        return `${entry.actorName} created this plan`
-      case 'plan_locked':
-        return 'Plan was locked'
-      case 'plan_renamed':
-        return `${entry.actorName || 'Host'} renamed to "${entry.details}"`
-      case 'participant_joined':
-        return `${entry.actorName} joined`
-      case 'availability_updated':
-        return `${entry.actorName} updated availability`
-      default:
-        return entry.action
+      case 'plan_created': return `${entry.actorName} created this plan`
+      case 'plan_locked': return 'Plan was locked'
+      case 'plan_renamed': return `${entry.actorName || 'Host'} renamed to "${entry.details}"`
+      case 'participant_joined': return `${entry.actorName} joined`
+      case 'availability_updated': return `${entry.actorName} updated availability`
+      default: return entry.action
     }
   }
 
@@ -105,7 +160,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
         <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6">
         <PlanHeader plan={plan} isHost={isHost} onShare={() => setShowShare(true)} onRefetch={refetch} />
 
-        {/* Meta info with icons */}
+        {/* Meta info */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 mb-5">
           {plan.granularity !== 'options' && (
             <span className="flex items-center gap-1 text-small text-muted-foreground">
@@ -133,7 +188,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           {isLocked && <Badge variant="locked">Locked</Badge>}
         </div>
 
-        {/* Response progress bar — show when 2+ participants */}
+        {/* Progress bar */}
         {totalCount >= 2 && !needsJoin && (
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
@@ -141,10 +196,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
                 {respondedCount} of {totalCount} responded
               </span>
               {respondedCount < totalCount && isHost && (
-                <button
-                  onClick={() => setShowShare(true)}
-                  className="text-tiny font-medium text-primary hover:text-primary/80 transition-colors"
-                >
+                <button onClick={() => setShowShare(true)} className="text-tiny font-medium text-primary hover:text-primary/80 transition-colors">
                   Nudge
                 </button>
               )}
@@ -160,7 +212,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           </div>
         )}
 
-        {/* Participants with response status */}
+        {/* Participants */}
         {plan.participants.length > 0 && (
           <div className="mb-6">
             <p className="text-tiny font-medium text-tertiary uppercase tracking-wider mb-2">Who&apos;s in</p>
@@ -186,25 +238,33 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           </div>
         )}
 
-        {/* Separator */}
         <div className="border-b border-border mb-6" />
 
-        {needsJoin && !isLocked ? (
-          <JoinForm slug={slug} onJoined={handleJoined} />
-        ) : (
-          <>
-            {/* Identity indicator */}
-            {plan.myParticipantId && (() => {
-              const me = plan.participants.find(p => p.id === plan.myParticipantId)
-              return me ? (
-                <p className="text-tiny text-tertiary mb-4">
-                  Editing as <span className="font-medium text-muted-foreground">{me.displayName}</span>
-                </p>
-              ) : null
-            })()}
-            <AvailabilityGrid plan={plan} editToken={editToken} isHost={isHost} onRefresh={refetch} isRefreshing={isRefreshing} />
-          </>
+        {/* Grid-first: always show grid. Preview mode when not joined. */}
+        {needsJoin && !isLocked && (
+          <p className="text-small text-muted-foreground mb-4">
+            Tap any slot to join and mark your availability.
+          </p>
         )}
+
+        {!needsJoin && plan.myParticipantId && (() => {
+          const me = plan.participants.find(p => p.id === plan.myParticipantId)
+          return me ? (
+            <p className="text-tiny text-tertiary mb-4">
+              Editing as <span className="font-medium text-muted-foreground">{me.displayName}</span>
+            </p>
+          ) : null
+        })()}
+
+        <AvailabilityGrid
+          plan={plan}
+          editToken={editToken}
+          isHost={isHost}
+          onRefresh={refetch}
+          isRefreshing={isRefreshing}
+          previewMode={needsJoin && !isLocked}
+          onPreviewTap={handlePreviewTap}
+        />
 
         {/* Activity log */}
         <div className="mt-6 pt-4 border-t border-border">
@@ -226,12 +286,10 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
                 <p className="text-tiny text-tertiary">No activity yet.</p>
               ) : (
                 <div className="relative pl-4">
-                  {/* Timeline line */}
                   <div className="absolute left-[5px] top-1.5 bottom-1.5 w-px bg-border" />
                   <div className="space-y-0.5">
                     {activity.map(entry => (
                       <div key={entry.id} className="relative flex items-baseline gap-3 py-1">
-                        {/* Timeline dot */}
                         <div className="absolute left-[-13px] top-[7px] w-[7px] h-[7px] rounded-full bg-border shrink-0" />
                         <span className="text-tiny text-muted-foreground flex-1">{formatAction(entry)}</span>
                         <span className="text-tiny text-tertiary whitespace-nowrap shrink-0">{timeAgo(entry.createdAt)}</span>
@@ -244,7 +302,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           )}
         </div>
 
-        {/* Post-lock: Plan your next thing */}
+        {/* Post-lock: calendar + share result + plan again */}
         {isLocked && (
           <motion.div
             className="mt-6 pt-6 border-t border-border text-center"
@@ -252,33 +310,52 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <p className="text-body font-medium text-foreground mb-1">
-              That was easy.
-            </p>
-            <p className="text-small text-muted-foreground mb-4">
-              Plan your next thing with the same group?
-            </p>
+            {bestSlot && (
+              <div className="mb-6">
+                <p className="text-small text-muted-foreground mb-3">
+                  Best time: {new Date(bestSlot.start).toLocaleString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: 'numeric', minute: '2-digit',
+                  })}
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <a
+                    href={googleCalendarUrl(plan.title, plan.location, bestSlot.start, bestSlot.end)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-small text-foreground hover:bg-accent transition-colors"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                    Google Calendar
+                  </a>
+                  <button
+                    onClick={() => downloadICS(plan.title, plan.location, bestSlot.start, bestSlot.end)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-small text-foreground hover:bg-accent transition-colors"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Download .ics
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-body font-medium text-foreground mb-1">That was easy.</p>
+            <p className="text-small text-muted-foreground mb-4">Plan your next thing?</p>
             <Link href="/">
-              <Button variant="primary">
-                Create another plan
-              </Button>
+              <Button variant="primary">Create another plan</Button>
             </Link>
           </motion.div>
         )}
         </div>
 
-        {/* Viral CTA — for non-host participants who have responded */}
+        {/* Viral CTA */}
         {!isHost && !needsJoin && !isLocked && (
-          <motion.div
-            className="mt-4 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.5 }}
-          >
-            <Link
-              href="/"
-              className="text-small text-muted-foreground hover:text-foreground transition-colors"
-            >
+          <motion.div className="mt-4 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}>
+            <Link href="/" className="text-small text-muted-foreground hover:text-foreground transition-colors">
               Planning something yourself? <span className="underline">Create your own plan</span> &rarr;
             </Link>
           </motion.div>
@@ -290,7 +367,18 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           slug={slug}
           title={plan.title}
           participants={plan.participants}
+          isLocked={isLocked}
+          bestSlot={bestSlot || undefined}
+          location={plan.location}
           onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {showJoinModal && (
+        <JoinModal
+          slug={slug}
+          onJoined={handleJoined}
+          onClose={() => setShowJoinModal(false)}
         />
       )}
     </div>

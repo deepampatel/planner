@@ -17,9 +17,11 @@ interface AvailabilityGridProps {
   isHost: boolean
   onRefresh?: () => void
   isRefreshing?: boolean
+  previewMode?: boolean
+  onPreviewTap?: (cellKey: string) => void
 }
 
-export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefreshing }: AvailabilityGridProps) {
+export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefreshing, previewMode, onPreviewTap }: AvailabilityGridProps) {
   const [viewMode, setViewMode] = useState<'my' | 'group'>('my')
   const isLocked = plan.status === 'locked'
 
@@ -80,9 +82,14 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
   }, [cellStates, pendingRef])
 
   const handleCellUpdate = useCallback((slotStart: string, slotEnd: string, status: CellState) => {
+    // Preview mode: intercept tap → trigger join modal
+    if (previewMode && onPreviewTap) {
+      onPreviewTap(`${slotStart}|${slotEnd}`)
+      return
+    }
     if (isLocked || !editToken) return
     updateCell(slotStart, slotEnd, status)
-  }, [isLocked, editToken, updateCell])
+  }, [isLocked, editToken, updateCell, previewMode, onPreviewTap])
 
   const { handlePointerDown, handlePointerMove, handlePointerEnter, handlePointerUp, isDragging, dragMode } = useGridInteraction(
     getCellState,
@@ -95,7 +102,8 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
 
   return (
     <div>
-      {/* View toggle */}
+      {/* View toggle — hidden in preview mode */}
+      {!previewMode && (
       <div className="flex items-center justify-between mb-4">
         <div className="relative flex rounded-lg bg-muted p-0.5">
           <motion.div
@@ -124,18 +132,14 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
 
         <div className="flex items-center gap-2">
           <AnimatePresence>
-            {!isOptions && isDragging && dragMode && (
+            {!isOptions && isDragging && (
               <motion.span
                 initial={{ opacity: 0, x: 4 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 4 }}
-                className={`text-tiny font-medium px-2 py-0.5 rounded-sm ${
-                  dragMode === 'free'
-                    ? 'bg-cell-free/15 text-emerald-800 dark:text-emerald-300'
-                    : 'bg-cell-maybe/15 text-amber-700 dark:text-amber-300'
-                }`}
+                className="text-tiny font-medium px-2 py-0.5 rounded-sm bg-cell-free/15 text-emerald-800 dark:text-emerald-300"
               >
-                {dragMode === 'free' ? '● Free' : '● Maybe'}
+                ● Free
               </motion.span>
             )}
           </AnimatePresence>
@@ -160,9 +164,10 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
           )}
         </div>
       </div>
+      )}
 
       {/* Interaction hint */}
-      {viewMode === 'my' && editToken && !isLocked && (
+      {!previewMode && viewMode === 'my' && editToken && !isLocked && (
         <p className="text-tiny text-tertiary mb-3">
           {isOptions ? 'Tap to vote' : 'Tap slots to mark'}
         </p>
@@ -207,10 +212,6 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-cell-free" />
             <span>Free</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-cell-maybe" />
-            <span>Maybe</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-cell-empty" />
