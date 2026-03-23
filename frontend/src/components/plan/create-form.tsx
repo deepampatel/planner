@@ -18,6 +18,7 @@ export function CreateForm() {
   const router = useRouter()
   const { user } = useAuth()
   const [title, setTitle] = useState('')
+  const [hostName, setHostName] = useState('')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
   const [isOptions, setIsOptions] = useState(false)
@@ -49,6 +50,9 @@ export function CreateForm() {
 
     if (!title.trim()) { setError('What are you planning?'); return }
 
+    const name = hostName.trim() || user?.displayName || ''
+    if (!name) { setError('What should we call you?'); return }
+
     if (isOptions) {
       if (customOptions.length < 2) { setError('Add at least 2 options'); return }
     } else {
@@ -69,7 +73,7 @@ export function CreateForm() {
         method: 'POST',
         body: {
           title: title.trim(),
-          hostName: user?.displayName || 'Host',
+          hostName: name,
           location: '',
           dateRangeStart: isOptions ? today : dateStart,
           dateRangeEnd: isOptions ? today : dateEnd,
@@ -114,6 +118,19 @@ export function CreateForm() {
             className="text-heading"
             autoFocus
           />
+
+          {/* Name — only for guests, auto-filled for signed-in users */}
+          {user ? (
+            <p className="text-small text-muted-foreground">
+              Creating as <span className="font-medium text-foreground">{user.displayName}</span>
+            </p>
+          ) : (
+            <Input
+              placeholder="Your name"
+              value={hostName}
+              onChange={e => setHostName(e.target.value)}
+            />
+          )}
 
           {/* Date range or custom options */}
           {!isOptions ? (
