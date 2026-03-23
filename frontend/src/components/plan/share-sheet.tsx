@@ -40,16 +40,22 @@ export function ShareSheet({ slug, title, participants, isLocked, bestSlot, loca
     }
   }
 
-  const handleWhatsApp = () => {
-    const encoded = encodeURIComponent(shareMessage)
-    window.location.href = `whatsapp://send?text=${encoded}`
+  const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+  const openWhatsApp = (msg: string) => {
+    const encoded = encodeURIComponent(msg)
+    if (isMobile) {
+      window.location.href = `whatsapp://send?text=${encoded}`
+    } else {
+      window.open(`https://web.whatsapp.com/send?text=${encoded}`, '_blank')
+    }
   }
+
+  const handleWhatsApp = () => openWhatsApp(shareMessage)
 
   const handleNudgeAll = () => {
     const names = nonResponders.map(p => p.displayName).join(', ')
-    const msg = `Hey ${names} — we're waiting on you! Mark when you're free for "${title}"\n${url}`
-    const encoded = encodeURIComponent(msg)
-    window.location.href = `whatsapp://send?text=${encoded}`
+    openWhatsApp(`Hey ${names} — we're waiting on you! Mark when you're free for "${title}"\n${url}`)
   }
 
   return (

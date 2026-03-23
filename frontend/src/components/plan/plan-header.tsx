@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { SignInButtons } from '@/components/auth/sign-in-buttons'
+import { toast } from 'sonner'
 import { apiClient } from '@/lib/api'
 import { getToken } from '@/lib/token-store'
 import { useAuth } from '@/hooks/use-auth'
@@ -46,9 +47,11 @@ export function PlanHeader({ plan, isHost, onShare, onRefetch }: PlanHeaderProps
         body: { title: trimmed },
         editToken: hostToken || '',
       })
+      toast.success('Plan renamed')
       setIsEditing(false)
       onRefetch()
     } catch {
+      toast.error('Failed to rename')
       setEditTitle(plan.title)
       setIsEditing(false)
     }
@@ -81,9 +84,10 @@ export function PlanHeader({ plan, isHost, onShare, onRefetch }: PlanHeaderProps
         origin: { y: 0.6 },
       })
 
+      toast.success('Plan locked! 🎉')
       onRefetch()
     } catch {
-      // Handle error
+      toast.error('Failed to lock plan')
     } finally {
       setIsLocking(false)
     }
@@ -109,6 +113,7 @@ export function PlanHeader({ plan, isHost, onShare, onRefetch }: PlanHeaderProps
               onClick={() => { setEditTitle(plan.title); setIsEditing(true) }}
               className="text-tertiary hover:text-muted-foreground transition-colors shrink-0"
               title="Rename plan"
+              aria-label="Rename plan"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SignInButtons } from '@/components/auth/sign-in-buttons'
@@ -36,8 +37,10 @@ export function JoinModal({ slug, onJoined, onClose }: JoinModalProps) {
       })
 
       setToken(`planfast_token_${slug}`, result.editToken)
+      toast.success("You're in! Tap where you're free.")
       onJoined()
     } catch {
+      toast.error('Failed to join. Please try again.')
       setIsJoining(false)
     }
   }
