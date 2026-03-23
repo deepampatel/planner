@@ -15,6 +15,9 @@ type Config struct {
 	JWTSecret      string `envconfig:"JWT_SECRET" default:"dev-secret-change-in-production"`
 	GoogleClientID string `envconfig:"GOOGLE_CLIENT_ID" default:""`
 	AppleClientID  string `envconfig:"APPLE_CLIENT_ID" default:""`
+
+	// Admin
+	AdminToken string `envconfig:"ADMIN_TOKEN" default:""`
 }
 
 func Load() (*Config, error) {

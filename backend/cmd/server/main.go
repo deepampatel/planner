@@ -18,6 +18,7 @@ import (
 
 	"github.com/deepampatel/planfast/internal/config"
 	"github.com/deepampatel/planfast/internal/db"
+	"github.com/deepampatel/planfast/internal/handler"
 	"github.com/deepampatel/planfast/internal/repository"
 	"github.com/deepampatel/planfast/internal/router"
 	"github.com/deepampatel/planfast/internal/service"
@@ -73,8 +74,11 @@ func main() {
 	// Start expiry worker
 	startExpiryWorker(planRepo)
 
+	// Admin handler
+	adminH := handler.NewAdminHandler(database, cfg.AdminToken)
+
 	// Create router
-	r := router.New(cfg.AllowedOrigins, planSvc, availSvc, heatmapSvc, authSvc, auditRepo)
+	r := router.New(cfg.AllowedOrigins, planSvc, availSvc, heatmapSvc, authSvc, auditRepo, adminH)
 
 	// Start server
 	srv := &http.Server{

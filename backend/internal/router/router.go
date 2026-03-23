@@ -19,6 +19,7 @@ func New(
 	heatmapSvc *service.HeatmapService,
 	authSvc *service.AuthService,
 	auditRepo *repository.AuditRepository,
+	adminH *handler.AdminHandler,
 ) chi.Router {
 	r := chi.NewRouter()
 
@@ -52,6 +53,9 @@ func New(
 			r.Get("/me", authH.Me)
 			r.Post("/logout", authH.Logout)
 		})
+
+		// Admin
+		r.Get("/admin/stats", adminH.Stats)
 
 		r.Route("/plans", func(r chi.Router) {
 			r.Post("/", planH.Create)
