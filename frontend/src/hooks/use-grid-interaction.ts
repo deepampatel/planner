@@ -9,6 +9,8 @@ type InteractionState =
   | { type: 'dragging'; paintStatus: 'free' | 'maybe'; cells: Set<string> }
 
 const LONG_PRESS_MS = 400
+// If the finger moves more than this many pixels, it's a scroll not a tap
+const TOUCH_MOVE_THRESHOLD = 8
 
 export function useGridInteraction(
   getCellState: (cellKey: string) => CellState,
@@ -16,6 +18,8 @@ export function useGridInteraction(
 ) {
   const stateRef = useRef<InteractionState>({ type: 'idle' })
   const isTouchRef = useRef(false)
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
+  const touchCancelled = useRef(false)
   const [renderKey, setRenderKey] = useState(0)
   const forceRender = () => setRenderKey(n => n + 1)
 
@@ -33,9 +37,14 @@ export function useGridInteraction(
     return { start, end }
   }
 
-  const handlePointerDown = useCallback((cellKey: string, pointerType?: string) => {
+  const handlePointerDown = useCallback((cellKey: string, pointerType?: string, x?: number, y?: number) => {
     // Track whether this interaction is touch-based
     isTouchRef.current = pointerType === 'touch' || pointerType === 'pen'
+    touchCancelled.current = false
+
+    if (isTouchRef.current) {
+      touchStartPos.current = { x: x ?? 0, y: y ?? 0 }
+    }
 
     // Guard: only start a new interaction from idle
     if (stateRef.current.type !== 'idle') {
@@ -62,6 +71,21 @@ export function useGridInteraction(
 
     stateRef.current = { type: 'pressing', cellKey, timer }
   }, [onCellUpdate])
+
+  const handlePointerMove = useCallback((x: number, y: number) => {
+    // Only relevant for touch — detect if finger moved (scrolling)
+    if (!isTouchRef.current || !touchStartPos.current) return
+    const dx = Math.abs(x - touchStartPos.current.x)
+    const dy = Math.abs(y - touchStartPos.current.y)
+    if (dx > TOUCH_MOVE_THRESHOLD || dy > TOUCH_MOVE_THRESHOLD) {
+      // Finger moved too much — this is a scroll, cancel the tap
+      touchCancelled.current = true
+      if (stateRef.current.type === 'pressing') {
+        clearTimeout(stateRef.current.timer)
+        stateRef.current = { type: 'idle' }
+      }
+    }
+  }, [])
 
   const handlePointerEnter = useCallback((cellKey: string) => {
     // On touch devices: no drag-to-paint. Scrolling takes priority.
@@ -92,17 +116,19 @@ export function useGridInteraction(
   const handlePointerUp = useCallback(() => {
     const state = stateRef.current
 
-    if (state.type === 'pressing') {
-      // Short tap → cycle state (works on both touch and mouse)
+    if (state.type === 'pressing' && !touchCancelled.current) {
+      // Short tap → cycle state (only if finger didn't move)
       clearTimeout(state.timer)
       const nextState = cycleCellState(state.cellKey)
       const { start, end } = parseKey(state.cellKey)
       onCellUpdate(start, end, nextState)
     }
 
-    // Always reset to idle
+    // Always reset
     stateRef.current = { type: 'idle' }
     isTouchRef.current = false
+    touchStartPos.current = null
+    touchCancelled.current = false
     forceRender()
   }, [cycleCellState, onCellUpdate])
 
@@ -110,5 +136,5 @@ export function useGridInteraction(
   const isDragging = currentState.type === 'dragging'
   const dragMode: 'free' | 'maybe' | null = currentState.type === 'dragging' ? currentState.paintStatus : null
 
-  return { handlePointerDown, handlePointerEnter, handlePointerUp, isDragging, dragMode }
+  return { handlePointerDown, handlePointerMove, handlePointerEnter, handlePointerUp, isDragging, dragMode }
 }

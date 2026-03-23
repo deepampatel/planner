@@ -73,7 +73,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
     updateCell(slotStart, slotEnd, status)
   }, [isLocked, editToken, updateCell])
 
-  const { handlePointerDown, handlePointerEnter, handlePointerUp, isDragging, dragMode } = useGridInteraction(
+  const { handlePointerDown, handlePointerMove, handlePointerEnter, handlePointerUp, isDragging, dragMode } = useGridInteraction(
     getCellState,
     handleCellUpdate
   )
@@ -179,6 +179,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
           cellStates={cellStates}
           othersMap={othersMap}
           onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
           onPointerEnter={handlePointerEnter}
           onPointerUp={handlePointerUp}
           disabled={isLocked || !editToken}
@@ -189,6 +190,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
           cellStates={cellStates}
           othersMap={othersMap}
           onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
           onPointerEnter={handlePointerEnter}
           onPointerUp={handlePointerUp}
           disabled={isLocked || !editToken}

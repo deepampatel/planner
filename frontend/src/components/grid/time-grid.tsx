@@ -9,7 +9,8 @@ interface TimeGridProps {
   plan: Plan
   cellStates: Map<string, CellState>
   othersMap?: Map<string, number>
-  onPointerDown: (cellKey: string) => void
+  onPointerDown: (cellKey: string, pointerType?: string, x?: number, y?: number) => void
+  onPointerMove: (x: number, y: number) => void
   onPointerEnter: (cellKey: string) => void
   onPointerUp: () => void
   disabled?: boolean
@@ -20,6 +21,7 @@ export function TimeGrid({
   cellStates,
   othersMap,
   onPointerDown,
+  onPointerMove,
   onPointerEnter,
   onPointerUp,
   disabled,
@@ -84,6 +86,7 @@ export function TimeGrid({
                   cellKey={cellKey}
                   status={status}
                   onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
                   onPointerEnter={onPointerEnter}
                   disabled={disabled}
                   othersCount={othersMap?.get(cellKey)}
