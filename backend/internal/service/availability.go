@@ -12,17 +12,20 @@ type AvailabilityService struct {
 	availRepo       *repository.AvailabilityRepository
 	participantRepo *repository.ParticipantRepository
 	planRepo        *repository.PlanRepository
+	auditRepo       *repository.AuditRepository
 }
 
 func NewAvailabilityService(
 	availRepo *repository.AvailabilityRepository,
 	participantRepo *repository.ParticipantRepository,
 	planRepo *repository.PlanRepository,
+	auditRepo *repository.AuditRepository,
 ) *AvailabilityService {
 	return &AvailabilityService{
 		availRepo:       availRepo,
 		participantRepo: participantRepo,
 		planRepo:        planRepo,
+		auditRepo:       auditRepo,
 	}
 }
 
@@ -55,6 +58,9 @@ func (s *AvailabilityService) Update(ctx context.Context, editToken string, upda
 		return fmt.Errorf("touching plan updated_at: %w", err)
 	}
 
+	// Audit log
+	s.auditRepo.Log(ctx, participant.PlanID, participant.DisplayName, "availability_updated", fmt.Sprintf("%d slots", len(updates)))
+
 	return nil
 }
 
@@ -81,6 +87,9 @@ func (s *AvailabilityService) Join(ctx context.Context, slug string, input model
 
 	// Touch plan updated_at
 	s.planRepo.TouchUpdatedAt(ctx, plan.ID)
+
+	// Audit log
+	s.auditRepo.Log(ctx, plan.ID, input.DisplayName, "participant_joined", "")
 
 	return &model.JoinPlanResult{
 		Participant: *participant,

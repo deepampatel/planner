@@ -33,7 +33,7 @@ type slotKey struct {
 	End   string
 }
 
-func (s *HeatmapService) Compute(ctx context.Context, slug string) (*model.HeatmapResponse, error) {
+func (s *HeatmapService) Compute(ctx context.Context, slug string, filterIDs []int64) (*model.HeatmapResponse, error) {
 	plan, err := s.planRepo.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, fmt.Errorf("plan not found: %w", err)
@@ -51,6 +51,22 @@ func (s *HeatmapService) Compute(ctx context.Context, slug string) (*model.Heatm
 	availability, err := s.availRepo.GetByPlanID(ctx, plan.ID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching availability: %w", err)
+	}
+
+	// Filter by participant IDs if provided
+	if len(filterIDs) > 0 {
+		filterSet := make(map[int64]bool)
+		for _, id := range filterIDs {
+			filterSet[id] = true
+		}
+		var filtered []repository.AvailabilityWithParticipant
+		for _, a := range availability {
+			if filterSet[a.ParticipantID] {
+				filtered = append(filtered, a)
+			}
+		}
+		availability = filtered
+		participantCount = len(filterIDs)
 	}
 
 	slotMap := make(map[string]*slotAgg)

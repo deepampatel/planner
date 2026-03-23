@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import type { Plan } from '@/lib/types'
+import type { Plan, AuditEntry } from '@/lib/types'
+import { apiClient } from '@/lib/api'
 import { usePlan } from '@/hooks/use-plan'
 import { useEditToken } from '@/hooks/use-edit-token'
 import { Header } from '@/components/layout/header'
@@ -24,6 +25,8 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
   const { editToken, isHost, loaded, setEditToken } = useEditToken(slug)
   const { plan, isRefreshing, refetch } = usePlan({ slug, initialData, editToken })
   const [showShare, setShowShare] = useState(false)
+  const [showActivity, setShowActivity] = useState(false)
+  const [activity, setActivity] = useState<AuditEntry[]>([])
 
   // Progress stats
   const respondedCount = useMemo(
@@ -44,6 +47,48 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
       setEditToken(newToken)
     }
     refetch()
+  }
+
+  const fetchActivity = async () => {
+    try {
+      const data = await apiClient<AuditEntry[]>(`/plans/${slug}/activity`)
+      setActivity(data)
+    } catch { /* ignore */ }
+  }
+
+  const handleActivityToggle = () => {
+    if (!showActivity) fetchActivity()
+    setShowActivity(prev => !prev)
+  }
+
+  const formatAction = (entry: AuditEntry): string => {
+    switch (entry.action) {
+      case 'plan_created':
+        return `${entry.actorName} created this plan`
+      case 'plan_locked':
+        return 'Plan was locked'
+      case 'plan_renamed':
+        return `${entry.actorName || 'Host'} renamed to "${entry.details}"`
+      case 'participant_joined':
+        return `${entry.actorName} joined`
+      case 'availability_updated':
+        return `${entry.actorName} updated availability`
+      default:
+        return entry.action
+    }
+  }
+
+  const timeAgo = (dateStr: string): string => {
+    const now = Date.now()
+    const then = new Date(dateStr + 'Z').getTime()
+    const diff = now - then
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins} min ago`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    return `${days}d ago`
   }
 
   return (
@@ -159,6 +204,39 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
             <AvailabilityGrid plan={plan} editToken={editToken} isHost={isHost} onRefresh={refetch} isRefreshing={isRefreshing} />
           </>
         )}
+
+        {/* Activity log */}
+        <div className="mt-6 pt-4 border-t border-border">
+          <button
+            onClick={handleActivityToggle}
+            className="flex items-center gap-1.5 text-tiny text-tertiary hover:text-muted-foreground transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Activity
+            <svg className={`w-3 h-3 transition-transform ${showActivity ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+          {showActivity && (
+            <div className="mt-3 space-y-2">
+              {activity.length === 0 ? (
+                <p className="text-tiny text-tertiary">No activity yet.</p>
+              ) : (
+                activity.map(entry => (
+                  <div key={entry.id} className="flex items-start gap-2">
+                    <span className="text-tertiary mt-1 shrink-0">&bull;</span>
+                    <p className="text-tiny text-muted-foreground">
+                      {formatAction(entry)}
+                      <span className="text-tertiary ml-1.5">{timeAgo(entry.createdAt)}</span>
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Post-lock: Plan your next thing */}
         {isLocked && (

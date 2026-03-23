@@ -61,11 +61,12 @@ func main() {
 	planRepo := repository.NewPlanRepository(database)
 	participantRepo := repository.NewParticipantRepository(database)
 	availRepo := repository.NewAvailabilityRepository(database)
+	auditRepo := repository.NewAuditRepository(database)
 
 	userRepo := repository.NewUserRepository(database)
 
-	planSvc := service.NewPlanService(planRepo, participantRepo, availRepo)
-	availSvc := service.NewAvailabilityService(availRepo, participantRepo, planRepo)
+	planSvc := service.NewPlanService(planRepo, participantRepo, availRepo, auditRepo)
+	availSvc := service.NewAvailabilityService(availRepo, participantRepo, planRepo, auditRepo)
 	heatmapSvc := service.NewHeatmapService(availRepo, planRepo, participantRepo)
 	authSvc := service.NewAuthService(userRepo, participantRepo, cfg.JWTSecret, cfg.GoogleClientID, cfg.AppleClientID)
 
@@ -73,7 +74,7 @@ func main() {
 	startExpiryWorker(planRepo)
 
 	// Create router
-	r := router.New(cfg.AllowedOrigins, planSvc, availSvc, heatmapSvc, authSvc)
+	r := router.New(cfg.AllowedOrigins, planSvc, availSvc, heatmapSvc, authSvc, auditRepo)
 
 	// Start server
 	srv := &http.Server{

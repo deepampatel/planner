@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { SignInButtons } from '@/components/auth/sign-in-buttons'
@@ -20,6 +20,48 @@ export function PlanHeader({ plan, isHost, onShare, onRefetch }: PlanHeaderProps
   const { user, signOut, isLoading: authLoading } = useAuth()
   const [isLocking, setIsLocking] = useState(false)
   const [showSignIn, setShowSignIn] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(plan.title)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing && titleInputRef.current) {
+      titleInputRef.current.focus()
+      titleInputRef.current.select()
+    }
+  }, [isEditing])
+
+  const handleTitleSave = async () => {
+    const trimmed = editTitle.trim()
+    if (!trimmed || trimmed === plan.title) {
+      setEditTitle(plan.title)
+      setIsEditing(false)
+      return
+    }
+    try {
+      const hostToken = localStorage.getItem(`planfast_host_${plan.slug}`)
+      await apiClient(`/plans/${plan.slug}`, {
+        method: 'PATCH',
+        body: { title: trimmed },
+        editToken: hostToken || '',
+      })
+      setIsEditing(false)
+      onRefetch()
+    } catch {
+      setEditTitle(plan.title)
+      setIsEditing(false)
+    }
+  }
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleTitleSave()
+    } else if (e.key === 'Escape') {
+      setEditTitle(plan.title)
+      setIsEditing(false)
+    }
+  }
 
   const handleLock = async () => {
     if (!confirm('Lock this plan? No more changes after this.')) return
@@ -49,7 +91,31 @@ export function PlanHeader({ plan, isHost, onShare, onRefetch }: PlanHeaderProps
   return (
     <div className="pt-4">
       {/* Title */}
-      <h1 className="text-title text-foreground">{plan.title}</h1>
+      {isEditing ? (
+        <input
+          ref={titleInputRef}
+          value={editTitle}
+          onChange={e => setEditTitle(e.target.value)}
+          onBlur={handleTitleSave}
+          onKeyDown={handleTitleKeyDown}
+          className="text-title text-foreground bg-transparent border-b-2 border-primary outline-none w-full"
+        />
+      ) : (
+        <div className="flex items-center gap-2">
+          <h1 className="text-title text-foreground">{plan.title}</h1>
+          {isHost && plan.status === 'active' && (
+            <button
+              onClick={() => { setEditTitle(plan.title); setIsEditing(true) }}
+              className="text-tertiary hover:text-muted-foreground transition-colors shrink-0"
+              title="Rename plan"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Actions row */}
       <div className="flex items-center gap-2 mt-3">

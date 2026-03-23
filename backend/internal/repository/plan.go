@@ -163,6 +163,13 @@ func (r *PlanRepository) TouchUpdatedAt(ctx context.Context, planID int64) error
 	return err
 }
 
+func (r *PlanRepository) UpdateTitle(ctx context.Context, planID int64, title string) error {
+	_, err := r.db.ExecContext(ctx,
+		"UPDATE plans SET title = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?",
+		title, planID)
+	return err
+}
+
 func (r *PlanRepository) ExpireStale(ctx context.Context) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
 		`UPDATE plans SET status = 'expired', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')

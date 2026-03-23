@@ -29,17 +29,35 @@ function scoreToOpacity(score: number): number {
 export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
   const [heatmap, setHeatmap] = useState<HeatmapResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(
+    new Set(plan.participants.map(p => p.id))
+  )
+
+  const toggleParticipant = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        if (next.size > 1) next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   const fetchHeatmap = useCallback(async () => {
     try {
-      const data = await apiClient<HeatmapResponse>(`/plans/${plan.slug}/heatmap`)
+      const params = selectedIds.size < plan.participants.length
+        ? `?participants=${Array.from(selectedIds).join(',')}`
+        : ''
+      const data = await apiClient<HeatmapResponse>(`/plans/${plan.slug}/heatmap${params}`)
       setHeatmap(data)
     } catch {
       // ignore
     } finally {
       setLoading(false)
     }
-  }, [plan.slug])
+  }, [plan.slug, selectedIds, plan.participants.length])
 
   useEffect(() => {
     fetchHeatmap()
@@ -74,6 +92,32 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
     return <OptionsResults plan={plan} heatmap={heatmap} />
   }
 
+  const filterChips = plan.participants.length >= 3 && (
+    <div className="mb-4">
+      <p className="text-tiny text-tertiary mb-2">
+        {selectedIds.size < plan.participants.length
+          ? `Best slot for ${selectedIds.size} of ${plan.participants.length} people`
+          : 'Showing all participants'
+        }
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {plan.participants.map(p => (
+          <button
+            key={p.id}
+            onClick={() => toggleParticipant(p.id)}
+            className={`text-tiny px-2.5 py-1 rounded-full transition-colors ${
+              selectedIds.has(p.id)
+                ? 'bg-primary/15 text-primary font-medium'
+                : 'bg-muted text-tertiary line-through'
+            }`}
+          >
+            {p.displayName}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   // Render time grid heatmap
   if (useTimeGrid) {
     const slots = generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone)
@@ -90,6 +134,8 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
+        {filterChips}
+
         {/* Best slot */}
         {heatmap.bestSlot && (
           <div className="mb-4 p-3 rounded-lg border border-cell-free/30 bg-cell-free/5">
@@ -180,6 +226,8 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
+      {filterChips}
+
       {heatmap.bestSlot && (
         <div className="mb-4 p-3 rounded-lg border border-cell-free/30 bg-cell-free/5">
           <div className="flex items-center gap-2">

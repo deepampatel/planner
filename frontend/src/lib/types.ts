@@ -85,6 +85,15 @@ export interface JoinResult {
   editToken: string
 }
 
+export interface AuditEntry {
+  id: number
+  planId: number
+  actorName: string
+  action: string
+  details: string
+  createdAt: string
+}
+
 export interface CreatePlanInput {
   title: string
   location?: string

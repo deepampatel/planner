@@ -13,6 +13,7 @@ type PlanService struct {
 	planRepo        *repository.PlanRepository
 	participantRepo *repository.ParticipantRepository
 	availRepo       *repository.AvailabilityRepository
+	auditRepo       *repository.AuditRepository
 	slugGen         *SlugGenerator
 }
 
@@ -20,11 +21,13 @@ func NewPlanService(
 	planRepo *repository.PlanRepository,
 	participantRepo *repository.ParticipantRepository,
 	availRepo *repository.AvailabilityRepository,
+	auditRepo *repository.AuditRepository,
 ) *PlanService {
 	return &PlanService{
 		planRepo:        planRepo,
 		participantRepo: participantRepo,
 		availRepo:       availRepo,
+		auditRepo:       auditRepo,
 		slugGen:         NewSlugGenerator(),
 	}
 }
@@ -99,6 +102,9 @@ func (s *PlanService) Create(ctx context.Context, input model.CreatePlanInput) (
 	plan.Participants = []model.Participant{*participant}
 	plan.ParticipantCount = 1
 
+	// Audit log
+	s.auditRepo.Log(ctx, plan.ID, hostName, "plan_created", plan.Title)
+
 	return &model.PlanWithTokens{
 		Plan:      *plan,
 		HostToken: hostToken,
@@ -155,5 +161,37 @@ func (s *PlanService) Lock(ctx context.Context, slug string, hostToken string) e
 		return fmt.Errorf("unauthorized: invalid host token")
 	}
 
-	return s.planRepo.Lock(ctx, plan.ID)
+	if err := s.planRepo.Lock(ctx, plan.ID); err != nil {
+		return err
+	}
+
+	s.auditRepo.Log(ctx, plan.ID, "", "plan_locked", "")
+	return nil
+}
+
+func (s *PlanService) UpdateTitle(ctx context.Context, slug string, hostToken string, title string) error {
+	plan, err := s.planRepo.GetBySlug(ctx, slug)
+	if err != nil {
+		return fmt.Errorf("plan not found: %w", err)
+	}
+
+	storedToken, err := s.planRepo.GetHostToken(ctx, plan.ID)
+	if err != nil {
+		return fmt.Errorf("fetching host token: %w", err)
+	}
+
+	if storedToken != hostToken {
+		return fmt.Errorf("unauthorized: invalid host token")
+	}
+
+	if title == "" {
+		return fmt.Errorf("title cannot be empty")
+	}
+
+	if err := s.planRepo.UpdateTitle(ctx, plan.ID, title); err != nil {
+		return err
+	}
+
+	s.auditRepo.Log(ctx, plan.ID, "", "plan_renamed", title)
+	return nil
 }

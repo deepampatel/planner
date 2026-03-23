@@ -10,15 +10,17 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/deepampatel/planfast/internal/model"
+	"github.com/deepampatel/planfast/internal/repository"
 	"github.com/deepampatel/planfast/internal/service"
 )
 
 type PlanHandler struct {
-	svc *service.PlanService
+	svc       *service.PlanService
+	auditRepo *repository.AuditRepository
 }
 
-func NewPlanHandler(svc *service.PlanService) *PlanHandler {
-	return &PlanHandler{svc: svc}
+func NewPlanHandler(svc *service.PlanService, auditRepo *repository.AuditRepository) *PlanHandler {
+	return &PlanHandler{svc: svc, auditRepo: auditRepo}
 }
 
 func (h *PlanHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -123,4 +125,46 @@ func (h *PlanHandler) Lock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"status": "locked"})
+}
+
+func (h *PlanHandler) Update(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	hostToken := r.Header.Get("X-Edit-Token")
+
+	var input struct {
+		Title string `json:"title"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.svc.UpdateTitle(r.Context(), slug, hostToken, input.Title); err != nil {
+		if err.Error() == "unauthorized: invalid host token" {
+			respondError(w, http.StatusForbidden, "not authorized")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (h *PlanHandler) Activity(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+
+	plan, err := h.svc.GetBySlug(r.Context(), slug, "")
+	if err != nil {
+		respondError(w, http.StatusNotFound, "plan not found")
+		return
+	}
+
+	entries, err := h.auditRepo.GetByPlanID(r.Context(), plan.ID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, entries)
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/deepampatel/planfast/internal/handler"
 	"github.com/deepampatel/planfast/internal/middleware"
+	"github.com/deepampatel/planfast/internal/repository"
 	"github.com/deepampatel/planfast/internal/service"
 )
 
@@ -17,6 +18,7 @@ func New(
 	availSvc *service.AvailabilityService,
 	heatmapSvc *service.HeatmapService,
 	authSvc *service.AuthService,
+	auditRepo *repository.AuditRepository,
 ) chi.Router {
 	r := chi.NewRouter()
 
@@ -32,7 +34,7 @@ func New(
 	r.Use(middleware.OptionalAuth(authSvc))
 
 	// Handlers
-	planH := handler.NewPlanHandler(planSvc)
+	planH := handler.NewPlanHandler(planSvc, auditRepo)
 	participantH := handler.NewParticipantHandler(availSvc)
 	availH := handler.NewAvailabilityHandler(availSvc)
 	heatmapH := handler.NewHeatmapHandler(heatmapSvc)
@@ -56,10 +58,12 @@ func New(
 
 			r.Route("/{slug}", func(r chi.Router) {
 				r.Get("/", planH.Get)
+				r.Patch("/", planH.Update)
 				r.Post("/join", participantH.Join)
 				r.Put("/availability", availH.Update)
 				r.Post("/lock", planH.Lock)
 				r.Get("/heatmap", heatmapH.Get)
+				r.Get("/activity", planH.Activity)
 			})
 		})
 	})
