@@ -121,7 +121,7 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
   // Render time grid heatmap
   if (useTimeGrid) {
     const slots = generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone)
-    const slotsPerDay = 28
+    const slotsPerDay = 48 // 24 hours × 2 slots/hour
     // Generate time labels from actual slot UTC times, displayed in viewer's timezone
     const firstDaySlots = slots.slice(0, slotsPerDay)
     const timeLabels = firstDaySlots.map(slot =>

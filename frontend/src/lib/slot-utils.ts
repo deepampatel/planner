@@ -78,7 +78,7 @@ export function generateTimeSlots(dateStart: string, dateEnd: string, planTimezo
     const month = d.getUTCMonth()
     const day = d.getUTCDate()
 
-    for (let hour = 8; hour < 22; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
       for (const min of [0, 30]) {
         const slotStart = localToUtc(year, month, day, hour, min, tz)
         const slotEnd = new Date(slotStart.getTime() + TIME_SLOT_MINUTES * 60 * 1000)

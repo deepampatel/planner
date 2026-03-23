@@ -263,9 +263,9 @@ func generateSlots(plan *model.Plan) []slot {
 			}
 		}
 	} else {
-		// 30-minute slots from 08:00 to 22:00 in plan timezone
+		// 30-minute slots for full 24 hours in plan timezone
 		for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
-			for hour := 8; hour < 22; hour++ {
+			for hour := 0; hour < 24; hour++ {
 				for _, min := range []int{0, 30} {
 					slotStart := time.Date(d.Year(), d.Month(), d.Day(), hour, min, 0, 0, loc).UTC()
 					slotEnd := slotStart.Add(30 * time.Minute)
