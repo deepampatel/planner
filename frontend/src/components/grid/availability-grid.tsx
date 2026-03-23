@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Plan, CellState } from '@/lib/types'
 import { useAvailability } from '@/hooks/use-availability'
 import { useGridInteraction } from '@/hooks/use-grid-interaction'
@@ -23,9 +23,15 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
   const [viewMode, setViewMode] = useState<'my' | 'group'>('my')
   const isLocked = plan.status === 'locked'
 
-  const { updateCell, pendingUpdates, isSaving } = useAvailability(plan.slug, editToken, onRefresh)
+  const { updateCell, pendingRef, versionRef, subscribe } = useAvailability(plan.slug, editToken)
 
-  // Build cell state map from ONLY our participant's data + pending optimistic updates
+  // Subscribe to pending changes — triggers re-render only when cells change
+  const [, setVersion] = useState(0)
+  useEffect(() => {
+    subscribe(() => setVersion(v => v + 1))
+  }, [subscribe])
+
+  // Build cell state map: server data + optimistic overlays from ref
   const cellStates = useMemo(() => {
     const map = new Map<string, CellState>()
 
@@ -39,7 +45,8 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
       }
     }
 
-    for (const [key, status] of pendingUpdates) {
+    // Overlay pending (ref, not state — no extra re-render chain)
+    for (const [key, status] of pendingRef.current) {
       if (status === 'clear') {
         map.delete(key)
       } else {
@@ -48,9 +55,10 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
     }
 
     return map
-  }, [plan.participants, plan.myParticipantId, pendingUpdates])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan.participants, plan.myParticipantId, versionRef.current])
 
-  // Compute others' availability count map
+  // Others' counts — only recalc when plan data changes (not on local taps)
   const othersMap = useMemo(() => {
     const map = new Map<string, number>()
     for (const participant of plan.participants) {
@@ -65,8 +73,11 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
   }, [plan.participants, plan.myParticipantId])
 
   const getCellState = useCallback((cellKey: string): CellState => {
+    // Read directly from pending ref for instant, flicker-free access
+    const pending = pendingRef.current.get(cellKey)
+    if (pending) return pending === 'clear' ? 'clear' : pending
     return cellStates.get(cellKey) || 'clear'
-  }, [cellStates])
+  }, [cellStates, pendingRef])
 
   const handleCellUpdate = useCallback((slotStart: string, slotEnd: string, status: CellState) => {
     if (isLocked || !editToken) return
@@ -84,10 +95,9 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
 
   return (
     <div>
-      {/* View toggle — segmented control with animated pill */}
+      {/* View toggle */}
       <div className="flex items-center justify-between mb-4">
         <div className="relative flex rounded-lg bg-muted p-0.5">
-          {/* Animated pill background */}
           <motion.div
             className="absolute inset-y-0.5 rounded-md bg-background shadow-subtle"
             style={{ width: 'calc(50% - 2px)' }}
@@ -113,7 +123,6 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Drag mode indicator — not shown for options mode */}
           <AnimatePresence>
             {!isOptions && isDragging && dragMode && (
               <motion.span
@@ -131,11 +140,6 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
             )}
           </AnimatePresence>
 
-          {isSaving && (
-            <span className="text-tiny text-tertiary">Saving...</span>
-          )}
-
-          {/* Refresh button */}
           {onRefresh && (
             <button
               onClick={onRefresh}
@@ -197,7 +201,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
         />
       )}
 
-      {/* Legend — grids only, OptionsGrid has its own */}
+      {/* Legend */}
       {viewMode === 'my' && !isOptions && (
         <div className="flex items-center gap-4 mt-4 text-tiny text-muted-foreground">
           <div className="flex items-center gap-1.5">

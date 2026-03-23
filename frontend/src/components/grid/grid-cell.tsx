@@ -54,7 +54,7 @@ export const GridCell = memo(function GridCell({
   return (
     <div
       className={cn(
-        'rounded-sm transition-colors duration-100 relative',
+        'rounded-sm relative',
         statusStyles[status],
         disabled
           ? 'cursor-default opacity-70'

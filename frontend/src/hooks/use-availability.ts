@@ -1,23 +1,29 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import { apiClient } from '@/lib/api'
 import type { AvailabilityUpdate, CellState } from '@/lib/types'
 
-const DEBOUNCE_MS = 500 // Wait 500ms after last change before flushing
+const DEBOUNCE_MS = 500
 
-export function useAvailability(slug: string, editToken: string | null, onSaveSuccess?: () => void) {
-  const [pendingUpdates, setPendingUpdates] = useState<Map<string, CellState>>(new Map())
-  const [isSaving, setIsSaving] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+export function useAvailability(slug: string, editToken: string | null) {
+  // All state in refs — no React re-renders for internal bookkeeping.
+  // The parent reads pendingRef.current directly via getCellState.
+  const pendingRef = useRef<Map<string, CellState>>(new Map())
   const batchRef = useRef<Map<string, CellState>>(new Map())
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const inflightRef = useRef(false)
   const slugRef = useRef(slug)
   const tokenRef = useRef(editToken)
-  const inflightRef = useRef(false)
-  const onSaveSuccessRef = useRef(onSaveSuccess)
+  const versionRef = useRef(0) // increments on each change for external subscribers
+  const subscriberRef = useRef<() => void>()
   slugRef.current = slug
   tokenRef.current = editToken
-  onSaveSuccessRef.current = onSaveSuccess
+
+  const notify = () => {
+    versionRef.current++
+    subscriberRef.current?.()
+  }
 
   const flushUpdates = useCallback(async () => {
     const currentToken = tokenRef.current
@@ -34,7 +40,6 @@ export function useAvailability(slug: string, editToken: string | null, onSaveSu
     })
 
     inflightRef.current = true
-    setIsSaving(true)
 
     try {
       await apiClient(`/plans/${currentSlug}/availability`, {
@@ -42,20 +47,9 @@ export function useAvailability(slug: string, editToken: string | null, onSaveSu
         body: { updates },
         editToken: currentToken,
       })
-
-      setPendingUpdates(prev => {
-        const next = new Map(prev)
-        for (const [key, status] of snapshot) {
-          if (next.get(key) === status) {
-            next.delete(key)
-          }
-        }
-        return next
-      })
-
-      onSaveSuccessRef.current?.()
+      // Don't clear pending or refetch — optimistic state is already correct.
+      // Server data will sync on next manual refresh or group view load.
     } catch {
-      // On failure, put back for retry
       for (const [key, status] of snapshot) {
         if (!batchRef.current.has(key)) {
           batchRef.current.set(key, status)
@@ -63,9 +57,6 @@ export function useAvailability(slug: string, editToken: string | null, onSaveSu
       }
     } finally {
       inflightRef.current = false
-      setIsSaving(false)
-
-      // Drain any updates that came in while saving
       if (batchRef.current.size > 0) {
         debounceRef.current = setTimeout(flushUpdates, 100)
       }
@@ -74,21 +65,27 @@ export function useAvailability(slug: string, editToken: string | null, onSaveSu
 
   const updateCell = useCallback((slotStart: string, slotEnd: string, status: CellState) => {
     const key = `${slotStart}|${slotEnd}`
-
-    // Merge into batch (last write wins — handles rapid taps on same cell)
     batchRef.current.set(key, status)
+    pendingRef.current.set(key, status)
 
-    // Optimistic UI
-    setPendingUpdates(prev => {
-      const next = new Map(prev)
-      next.set(key, status)
-      return next
-    })
+    // Notify subscriber (triggers single re-render in grid)
+    notify()
 
-    // Reset debounce timer — waits for user to stop interacting
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(flushUpdates, DEBOUNCE_MS)
   }, [flushUpdates])
 
-  return { updateCell, pendingUpdates, isSaving, flushUpdates }
+  // Allow parent to subscribe for re-renders
+  const subscribe = useCallback((cb: () => void) => {
+    subscriberRef.current = cb
+  }, [])
+
+  return {
+    updateCell,
+    pendingRef,
+    versionRef,
+    subscribe,
+    isSavingRef: inflightRef,
+    flushUpdates,
+  }
 }
