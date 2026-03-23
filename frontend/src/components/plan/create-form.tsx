@@ -225,7 +225,7 @@ export function CreateForm() {
               <select
                 value={duration}
                 onChange={e => setDuration(Number(e.target.value))}
-                className="w-full bg-transparent text-body text-foreground border-b border-transparent focus:border-border py-2 outline-none appearance-none cursor-pointer transition-colors duration-fast"
+                className="w-full bg-card text-body text-foreground border border-border/60 rounded-lg px-3 py-2.5 outline-none cursor-pointer transition-colors duration-fast focus:border-foreground/30"
               >
                 <option value={30}>30 minutes</option>
                 <option value={60}>1 hour</option>
