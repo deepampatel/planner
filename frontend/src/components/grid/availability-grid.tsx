@@ -180,7 +180,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
           plan={plan}
           cellStates={cellStates}
           onCellUpdate={handleCellUpdate}
-          disabled={isLocked || !editToken}
+          disabled={previewMode ? false : (isLocked || !editToken)}
         />
       ) : useTimeGrid ? (
         <TimeGrid
@@ -191,7 +191,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
           onPointerMove={handlePointerMove}
           onPointerEnter={handlePointerEnter}
           onPointerUp={handlePointerUp}
-          disabled={isLocked || !editToken}
+          disabled={previewMode ? false : (isLocked || !editToken)}
         />
       ) : (
         <DayGrid
@@ -202,7 +202,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
           onPointerMove={handlePointerMove}
           onPointerEnter={handlePointerEnter}
           onPointerUp={handlePointerUp}
-          disabled={isLocked || !editToken}
+          disabled={previewMode ? false : (isLocked || !editToken)}
         />
       )}
 

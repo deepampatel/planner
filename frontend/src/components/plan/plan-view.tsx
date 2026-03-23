@@ -102,6 +102,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
     if (newToken) {
       setEditToken(newToken)
     }
+    setShowJoinModal(false)
     refetch()
   }
 
@@ -265,6 +266,15 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           previewMode={needsJoin && !isLocked}
           onPreviewTap={handlePreviewTap}
         />
+
+        {/* Fallback join button for users who don't tap cells */}
+        {needsJoin && !isLocked && (
+          <div className="mt-4 text-center">
+            <Button variant="primary" onClick={() => setShowJoinModal(true)}>
+              Join this plan
+            </Button>
+          </div>
+        )}
 
         {/* Activity log */}
         <div className="mt-6 pt-4 border-t border-border">
