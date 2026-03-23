@@ -76,16 +76,13 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
 
   // Render time grid heatmap
   if (useTimeGrid) {
-    const slots = generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd)
+    const slots = generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone)
     const slotsPerDay = 28
-    const timeLabels: string[] = []
-    for (let hour = 8; hour < 22; hour++) {
-      for (const min of [0, 30]) {
-        const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
-        const ampm = hour >= 12 ? 'PM' : 'AM'
-        timeLabels.push(`${h}:${min === 0 ? '00' : '30'} ${ampm}`)
-      }
-    }
+    // Generate time labels from actual slot UTC times, displayed in viewer's timezone
+    const firstDaySlots = slots.slice(0, slotsPerDay)
+    const timeLabels = firstDaySlots.map(slot =>
+      new Date(slot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    )
 
     return (
       <motion.div
@@ -107,7 +104,6 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
                 day: 'numeric',
                 hour: 'numeric',
                 minute: '2-digit',
-                timeZone: 'UTC',
               })}
               {' — '}
               {heatmap.bestSlot.freeParticipants.length} free
@@ -175,7 +171,7 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
   }
 
   // Day grid heatmap (similar structure but with AM/PM/Eve rows)
-  const blocks = generateDayBlocks(plan.dateRangeStart, plan.dateRangeEnd)
+  const blocks = generateDayBlocks(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone)
   const periodsPerDay = DAY_PERIODS.length
 
   return (
@@ -195,7 +191,6 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
               weekday: 'short',
               month: 'short',
               day: 'numeric',
-              timeZone: 'UTC',
             })}
             {' — '}
             {heatmap.bestSlot.freeParticipants.length} free

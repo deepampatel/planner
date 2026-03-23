@@ -27,23 +27,23 @@ export function TimeGrid({
   disabled,
 }: TimeGridProps) {
   const dates = useMemo(() => getDatesInRange(plan.dateRangeStart, plan.dateRangeEnd), [plan.dateRangeStart, plan.dateRangeEnd])
-  const slots = useMemo(() => generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd), [plan.dateRangeStart, plan.dateRangeEnd])
+  const slots = useMemo(() => generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone), [plan.dateRangeStart, plan.dateRangeEnd, plan.timezone])
 
-  // Group slots by time row
-  const timeLabels = useMemo(() => {
-    const labels: string[] = []
-    for (let hour = 8; hour < 22; hour++) {
-      for (const min of [0, 30]) {
-        const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
-        const ampm = hour >= 12 ? 'PM' : 'AM'
-        labels.push(`${h}:${min === 0 ? '00' : '30'} ${ampm}`)
-      }
-    }
-    return labels
-  }, [])
-
-  // Build grid: rows = time slots, columns = dates
   const slotsPerDay = 28 // (22-8)*2 = 28 half-hour slots
+
+  // Generate time labels from actual slot UTC times, displayed in viewer's timezone
+  const timeLabels = useMemo(() => {
+    if (slots.length === 0) return []
+    // Take first day's slots to derive labels
+    const firstDaySlots = slots.slice(0, slotsPerDay)
+    return firstDaySlots.map(slot => {
+      const d = new Date(slot.start)
+      return d.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    })
+  }, [slots])
 
   return (
     <div
@@ -51,9 +51,9 @@ export function TimeGrid({
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
     >
-      {/* Date headers */}
+      {/* Date headers — in viewer's local timezone */}
       <div className="grid gap-0.5 mb-1" style={{ gridTemplateColumns: `48px repeat(${dates.length}, 1fr)` }}>
-        <div /> {/* Empty corner */}
+        <div />
         {dates.map((date, i) => (
           <div key={i} className="text-tiny text-muted-foreground text-center font-medium py-1">
             <div>{date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</div>
@@ -66,7 +66,7 @@ export function TimeGrid({
       <div className="grid gap-0.5" style={{ gridTemplateColumns: `48px repeat(${dates.length}, 1fr)` }}>
         {timeLabels.map((label, rowIdx) => (
           <div key={rowIdx} className="contents">
-            {/* Time label */}
+            {/* Time label — show every hour (every 2nd row) */}
             <div className="text-tiny text-tertiary text-right pr-2 flex items-center justify-end" style={{ height: 36 }}>
               {rowIdx % 2 === 0 ? label : ''}
             </div>

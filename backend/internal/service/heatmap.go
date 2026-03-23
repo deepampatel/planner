@@ -224,15 +224,22 @@ func generateSlots(plan *model.Plan) []slot {
 	start, _ := time.Parse("2006-01-02", plan.DateRangeStart)
 	end, _ := time.Parse("2006-01-02", plan.DateRangeEnd)
 
+	// Load the plan's timezone — slots at "8 AM" mean 8 AM in this timezone.
+	// time.Date(y, m, d, h, 0, 0, 0, loc).UTC() gives the correct UTC equivalent.
+	loc, err := time.LoadLocation(plan.Timezone)
+	if err != nil {
+		loc = time.UTC // fallback
+	}
+
 	var slots []slot
 
 	if plan.Granularity == "day" {
-		// AM (08:00-12:00), PM (12:00-17:00), Eve (17:00-22:00)
+		// AM (08:00-12:00), PM (12:00-17:00), Eve (17:00-22:00) in plan timezone
 		periods := [][2]int{{8, 12}, {12, 17}, {17, 22}}
 		for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 			for _, p := range periods {
-				slotStart := time.Date(d.Year(), d.Month(), d.Day(), p[0], 0, 0, 0, time.UTC)
-				slotEnd := time.Date(d.Year(), d.Month(), d.Day(), p[1], 0, 0, 0, time.UTC)
+				slotStart := time.Date(d.Year(), d.Month(), d.Day(), p[0], 0, 0, 0, loc).UTC()
+				slotEnd := time.Date(d.Year(), d.Month(), d.Day(), p[1], 0, 0, 0, loc).UTC()
 				slots = append(slots, slot{
 					Start: slotStart.Format(time.RFC3339),
 					End:   slotEnd.Format(time.RFC3339),
@@ -240,11 +247,11 @@ func generateSlots(plan *model.Plan) []slot {
 			}
 		}
 	} else {
-		// 30-minute slots from 08:00 to 22:00
+		// 30-minute slots from 08:00 to 22:00 in plan timezone
 		for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 			for hour := 8; hour < 22; hour++ {
 				for _, min := range []int{0, 30} {
-					slotStart := time.Date(d.Year(), d.Month(), d.Day(), hour, min, 0, 0, time.UTC)
+					slotStart := time.Date(d.Year(), d.Month(), d.Day(), hour, min, 0, 0, loc).UTC()
 					slotEnd := slotStart.Add(30 * time.Minute)
 					slots = append(slots, slot{
 						Start: slotStart.Format(time.RFC3339),

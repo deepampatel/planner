@@ -28,7 +28,7 @@ export function DayGrid({
   disabled,
 }: DayGridProps) {
   const dates = useMemo(() => getDatesInRange(plan.dateRangeStart, plan.dateRangeEnd), [plan.dateRangeStart, plan.dateRangeEnd])
-  const blocks = useMemo(() => generateDayBlocks(plan.dateRangeStart, plan.dateRangeEnd), [plan.dateRangeStart, plan.dateRangeEnd])
+  const blocks = useMemo(() => generateDayBlocks(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone), [plan.dateRangeStart, plan.dateRangeEnd, plan.timezone])
 
   const periodsPerDay = DAY_PERIODS.length
 
