@@ -56,6 +56,8 @@ func New(
 
 		// Admin
 		r.Get("/admin/stats", adminH.Stats)
+		r.Get("/admin/plans", adminH.Plans)
+		r.Get("/admin/activity", adminH.Activity)
 
 		r.Route("/plans", func(r chi.Router) {
 			r.Post("/", planH.Create)
