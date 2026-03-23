@@ -97,6 +97,13 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
   const needsJoin = !editToken
   const isLocked = plan.status === 'locked'
 
+  // Auto-open join modal for non-joined visitors on active plans
+  useEffect(() => {
+    if (needsJoin && !isLocked) {
+      setShowJoinModal(true)
+    }
+  }, [needsJoin, isLocked])
+
   const handleJoined = () => {
     const newToken = getToken(`planfast_token_${slug}`)
     if (newToken) {
