@@ -16,7 +16,7 @@ import type { PlanWithTokens, CustomOption } from '@/lib/types'
 
 export function CreateForm() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [title, setTitle] = useState('')
   const [hostName, setHostName] = useState('')
   const [dateStart, setDateStart] = useState('')
@@ -123,6 +123,8 @@ export function CreateForm() {
           {user ? (
             <p className="text-small text-muted-foreground">
               Creating as <span className="font-medium text-foreground">{user.displayName}</span>
+              {' · '}
+              <button type="button" onClick={() => signOut()} className="text-tertiary hover:text-foreground transition-colors underline">switch</button>
             </p>
           ) : (
             <Input
