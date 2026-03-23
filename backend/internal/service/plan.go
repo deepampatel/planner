@@ -112,7 +112,7 @@ func (s *PlanService) Create(ctx context.Context, input model.CreatePlanInput) (
 	}, nil
 }
 
-func (s *PlanService) GetBySlug(ctx context.Context, slug string, editToken string) (*model.Plan, error) {
+func (s *PlanService) GetBySlug(ctx context.Context, slug string, editToken string, userID int64) (*model.Plan, error) {
 	plan, err := s.planRepo.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, err
@@ -135,11 +135,20 @@ func (s *PlanService) GetBySlug(ctx context.Context, slug string, editToken stri
 	plan.Participants = participants
 	plan.ParticipantCount = len(participants)
 
-	// Identify which participant matches the edit token
+	// Identify which participant belongs to the caller.
+	// Try editToken first (fast path), then fall back to authenticated user_id.
 	if editToken != "" {
 		participant, err := s.participantRepo.GetByEditToken(ctx, editToken)
 		if err == nil && participant.PlanID == plan.ID {
 			plan.MyParticipantID = &participant.ID
+		}
+	}
+	if plan.MyParticipantID == nil {
+		if userID > 0 {
+			participant, err := s.participantRepo.GetByUserIDAndPlanID(ctx, userID, plan.ID)
+			if err == nil {
+				plan.MyParticipantID = &participant.ID
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/deepampatel/planfast/internal/middleware"
 	"github.com/deepampatel/planfast/internal/model"
 	"github.com/deepampatel/planfast/internal/service"
 )
@@ -32,7 +33,8 @@ func (h *ParticipantHandler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.Join(r.Context(), slug, input)
+	userID := middleware.GetUserID(r.Context())
+	result, err := h.svc.Join(r.Context(), slug, input, userID)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return

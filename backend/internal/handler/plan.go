@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/deepampatel/planfast/internal/middleware"
 	"github.com/deepampatel/planfast/internal/model"
 	"github.com/deepampatel/planfast/internal/repository"
 	"github.com/deepampatel/planfast/internal/service"
@@ -93,7 +94,8 @@ func (h *PlanHandler) Get(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 	editToken := r.Header.Get("X-Edit-Token")
 
-	plan, err := h.svc.GetBySlug(r.Context(), slug, editToken)
+	userID := middleware.GetUserID(r.Context())
+	plan, err := h.svc.GetBySlug(r.Context(), slug, editToken, userID)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "plan not found")
 		return
@@ -154,7 +156,7 @@ func (h *PlanHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *PlanHandler) Activity(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
 
-	plan, err := h.svc.GetBySlug(r.Context(), slug, "")
+	plan, err := h.svc.GetBySlug(r.Context(), slug, "", 0)
 	if err != nil {
 		respondError(w, http.StatusNotFound, "plan not found")
 		return

@@ -86,3 +86,26 @@ func (r *ParticipantRepository) CountByPlanID(ctx context.Context, planID int64)
 	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM participants WHERE plan_id = ?", planID).Scan(&count)
 	return count, err
 }
+
+// GetByUserIDAndPlanID finds a participant by their linked user account.
+// Returns nil, nil if no participant is linked to this user in this plan.
+func (r *ParticipantRepository) GetByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*model.Participant, error) {
+	query := `SELECT id, plan_id, display_name, email, timezone, has_responded, created_at FROM participants WHERE user_id = ? AND plan_id = ?`
+	var p model.Participant
+	var hasResp int
+	err := r.db.QueryRowContext(ctx, query, userID, planID).Scan(
+		&p.ID, &p.PlanID, &p.DisplayName, &p.Email, &p.Timezone, &hasResp, &p.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.HasResponded = hasResp == 1
+	p.Availability = []model.AvailabilitySlot{}
+	return &p, nil
+}
+
+// LinkUserID associates a participant with a user account for identity recovery.
+func (r *ParticipantRepository) LinkUserID(ctx context.Context, participantID, userID int64) error {
+	_, err := r.db.ExecContext(ctx, "UPDATE participants SET user_id = ? WHERE id = ? AND (user_id IS NULL OR user_id = 0)", userID, participantID)
+	return err
+}

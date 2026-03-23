@@ -64,7 +64,7 @@ func (s *AvailabilityService) Update(ctx context.Context, editToken string, upda
 	return nil
 }
 
-func (s *AvailabilityService) Join(ctx context.Context, slug string, input model.JoinPlanInput) (*model.JoinPlanResult, error) {
+func (s *AvailabilityService) Join(ctx context.Context, slug string, input model.JoinPlanInput, userID int64) (*model.JoinPlanResult, error) {
 	plan, err := s.planRepo.GetBySlug(ctx, slug)
 	if err != nil {
 		return nil, fmt.Errorf("plan not found: %w", err)
@@ -83,6 +83,11 @@ func (s *AvailabilityService) Join(ctx context.Context, slug string, input model
 	participant, err := s.participantRepo.Create(ctx, plan.ID, input.DisplayName, editToken, timezone, input.Email)
 	if err != nil {
 		return nil, fmt.Errorf("creating participant: %w", err)
+	}
+
+	// Link to authenticated user if signed in — enables identity recovery
+	if userID > 0 {
+		s.participantRepo.LinkUserID(ctx, participant.ID, userID)
 	}
 
 	// Touch plan updated_at
