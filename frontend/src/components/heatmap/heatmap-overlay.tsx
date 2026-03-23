@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import type { Plan, HeatmapResponse, HeatmapCell } from '@/lib/types'
 import { apiClient } from '@/lib/api'
@@ -121,97 +121,22 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
   // Render time grid heatmap
   if (useTimeGrid) {
     const slots = generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone)
-    const slotsPerDay = 48 // 24 hours × 2 slots/hour
-    // Generate time labels from actual slot UTC times, displayed in viewer's timezone
+    const slotsPerDay = 48
     const firstDaySlots = slots.slice(0, slotsPerDay)
     const timeLabels = firstDaySlots.map(slot =>
       new Date(slot.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
     )
 
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        {filterChips}
-
-        {/* Best slot */}
-        {heatmap.bestSlot && (
-          <div className="mb-4 p-3 rounded-lg border border-cell-free/30 bg-cell-free/5">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-cell-free animate-pulse-soft" />
-              <span className="text-small font-medium text-foreground">Best slot found</span>
-            </div>
-            <p className="text-small text-muted-foreground mt-1">
-              {new Date(heatmap.bestSlot.start).toLocaleString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-              {' — '}
-              {heatmap.bestSlot.freeParticipants.length} free
-                          </p>
-          </div>
-        )}
-
-        <div className="overflow-x-auto -mx-1 px-1">
-        {/* Headers */}
-        <div className="grid gap-0.5 mb-1" style={{ gridTemplateColumns: `48px repeat(${dates.length}, minmax(36px, 1fr))` }}>
-          <div />
-          {dates.map((date, i) => (
-            <div key={i} className="text-tiny text-muted-foreground text-center font-medium py-1">
-              <div>{date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</div>
-              <div>{date.getUTCDate()}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Heatmap grid */}
-        <div className="grid gap-0.5" style={{ gridTemplateColumns: `48px repeat(${dates.length}, minmax(36px, 1fr))` }}>
-          {timeLabels.map((label, rowIdx) => (
-            <div key={rowIdx} className="contents">
-              <div className="text-tiny text-tertiary text-right pr-2 flex items-center justify-end" style={{ height: 36 }}>
-                {rowIdx % 2 === 0 ? label : ''}
-              </div>
-              {dates.map((_, colIdx) => {
-                const slotIdx = colIdx * slotsPerDay + rowIdx
-                const slot = slots[slotIdx]
-                if (!slot) return <div key={colIdx} />
-                const cellKey = `${slot.start}|${slot.end}`
-                const cell = cellMap.get(cellKey)
-                const score = cell?.score ?? 0
-
-                return (
-                  <div
-                    key={cellKey}
-                    className={cn('rounded-sm transition-colors duration-slow', scoreToColor(score))}
-                    style={{ minHeight: 36, opacity: scoreToOpacity(score) }}
-                    title={cell ? `${cell.freeCount} of ${cell.totalParticipants} free` : 'No data'}
-                  />
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        </div>{/* end overflow-x-auto */}
-
-        {/* Legend */}
-        <div className="flex items-center gap-3 mt-4">
-          <span className="text-tiny text-tertiary">Less</span>
-          <div className="flex gap-0.5">
-            <div className="w-4 h-4 rounded-sm bg-cell-none opacity-30" />
-            <div className="w-4 h-4 rounded-sm bg-heatmap-low" />
-            <div className="w-4 h-4 rounded-sm bg-heatmap-medium-low" />
-            <div className="w-4 h-4 rounded-sm bg-heatmap-medium-high" />
-            <div className="w-4 h-4 rounded-sm bg-heatmap-high" />
-          </div>
-          <span className="text-tiny text-tertiary">More available</span>
-        </div>
-      </motion.div>
+      <TimeHeatmap
+        heatmap={heatmap}
+        dates={dates}
+        slots={slots}
+        slotsPerDay={slotsPerDay}
+        timeLabels={timeLabels}
+        cellMap={cellMap}
+        filterChips={filterChips}
+      />
     )
   }
 
@@ -284,6 +209,110 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
       </div>
       </div>{/* end overflow-x-auto */}
 
+      <div className="flex items-center gap-3 mt-4">
+        <span className="text-tiny text-tertiary">Less</span>
+        <div className="flex gap-0.5">
+          <div className="w-4 h-4 rounded-sm bg-cell-none opacity-30" />
+          <div className="w-4 h-4 rounded-sm bg-heatmap-low" />
+          <div className="w-4 h-4 rounded-sm bg-heatmap-medium-low" />
+          <div className="w-4 h-4 rounded-sm bg-heatmap-medium-high" />
+          <div className="w-4 h-4 rounded-sm bg-heatmap-high" />
+        </div>
+        <span className="text-tiny text-tertiary">More available</span>
+      </div>
+    </motion.div>
+  )
+}
+
+// Extracted time heatmap with scroll + auto-scroll to 8 AM
+function TimeHeatmap({ heatmap, dates, slots, slotsPerDay, timeLabels, cellMap, filterChips }: {
+  heatmap: HeatmapResponse
+  dates: Date[]
+  slots: { start: string; end: string }[]
+  slotsPerDay: number
+  timeLabels: string[]
+  cellMap: Map<string, HeatmapCell>
+  filterChips: React.ReactNode
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 16 * 38 // row 16 = 8 AM (36px height + 2px gap)
+    }
+  }, [])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      {filterChips}
+
+      {heatmap.bestSlot && (
+        <div className="mb-4 p-3 rounded-lg border border-cell-free/30 bg-cell-free/5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-cell-free animate-pulse-soft" />
+            <span className="text-small font-medium text-foreground">Best slot found</span>
+          </div>
+          <p className="text-small text-muted-foreground mt-1">
+            {new Date(heatmap.bestSlot.start).toLocaleString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric',
+              hour: 'numeric', minute: '2-digit',
+            })}
+            {' — '}
+            {heatmap.bestSlot.freeParticipants.length} free
+          </p>
+        </div>
+      )}
+
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto overflow-y-auto -mx-1 px-1"
+        style={{ maxHeight: `${14 * 38}px` }}
+      >
+        {/* Headers — sticky */}
+        <div className="grid gap-0.5 mb-1 sticky top-0 bg-card z-10" style={{ gridTemplateColumns: `48px repeat(${dates.length}, minmax(36px, 1fr))` }}>
+          <div />
+          {dates.map((date, i) => (
+            <div key={i} className="text-tiny text-muted-foreground text-center font-medium py-1">
+              <div>{date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</div>
+              <div>{date.getUTCDate()}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Heatmap grid */}
+        <div className="grid gap-0.5" style={{ gridTemplateColumns: `48px repeat(${dates.length}, minmax(36px, 1fr))` }}>
+          {timeLabels.map((label, rowIdx) => (
+            <div key={rowIdx} className="contents">
+              <div className="text-tiny text-tertiary text-right pr-2 flex items-center justify-end" style={{ height: 36 }}>
+                {rowIdx % 2 === 0 ? label : ''}
+              </div>
+              {dates.map((_, colIdx) => {
+                const slotIdx = colIdx * slotsPerDay + rowIdx
+                const slot = slots[slotIdx]
+                if (!slot) return <div key={colIdx} />
+                const cellKey = `${slot.start}|${slot.end}`
+                const cell = cellMap.get(cellKey)
+                const score = cell?.score ?? 0
+
+                return (
+                  <div
+                    key={cellKey}
+                    className={cn('rounded-sm transition-colors duration-slow', scoreToColor(score))}
+                    style={{ minHeight: 36, opacity: scoreToOpacity(score) }}
+                    title={cell ? `${cell.freeCount} of ${cell.totalParticipants} free` : 'No data'}
+                  />
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
       <div className="flex items-center gap-3 mt-4">
         <span className="text-tiny text-tertiary">Less</span>
         <div className="flex gap-0.5">
