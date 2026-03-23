@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/providers/theme-provider'
 import { AuthProvider } from '@/providers/auth-provider'
+import { GoogleOneTap } from '@/components/auth/google-one-tap'
 import { Toaster } from 'sonner'
 import './globals.css'
 
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
+          <GoogleOneTap />
           <main className="min-h-screen">
             {children}
           </main>
