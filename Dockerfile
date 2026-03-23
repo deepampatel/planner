@@ -23,7 +23,7 @@ RUN pnpm build
 # ── Stage 3: Runtime ─────────────────────────────────────────
 FROM node:22-alpine AS runtime
 
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini tzdata
 
 WORKDIR /app
 
