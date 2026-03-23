@@ -10,6 +10,17 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'plann.fast — Stop planning. Start going.',
   description: 'The fastest way to find when your group is free. Share a link, mark availability, done.',
+  openGraph: {
+    title: 'plann.fast — Stop planning. Start going.',
+    description: 'The fastest way to find when your group is free. Share a link, mark availability, done.',
+    type: 'website',
+    siteName: 'plann.fast',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'plann.fast',
+    description: 'The fastest way to find when your group is free.',
+  },
 }
 
 export default function RootLayout({

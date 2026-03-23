@@ -32,9 +32,15 @@ export async function generateMetadata(
     title: `${plan.title} | plann.fast`,
     description: `${plan.participantCount} people planning ${plan.title}. ${dateRange}`,
     openGraph: {
-      title: plan.title,
-      description: `${plan.participantCount} people planning. Join and mark your availability!`,
+      title: `${plan.title} — plann.fast`,
+      description: `${plan.participantCount} people planning. Tap to join and mark when you're free!`,
       type: 'website',
+      siteName: 'plann.fast',
+    },
+    twitter: {
+      card: 'summary',
+      title: `${plan.title} — plann.fast`,
+      description: `${plan.participantCount} people planning. Tap to join and mark when you're free!`,
     },
   }
 }

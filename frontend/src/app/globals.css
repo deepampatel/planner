@@ -85,10 +85,17 @@
 
 /* Grid interaction */
 .grid-canvas {
-  touch-action: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Only disable touch scrolling on devices with a fine pointer (mouse/trackpad).
+   On touch devices, allow normal scroll so swipe ≠ paint. */
+@media (pointer: fine) {
+  .grid-canvas {
+    touch-action: none;
+  }
 }
 
 /* Skeleton shimmer */

@@ -160,7 +160,7 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
       {/* Interaction hint */}
       {viewMode === 'my' && editToken && !isLocked && (
         <p className="text-tiny text-tertiary mb-3">
-          {isOptions ? 'Tap to vote' : 'Tap slots \u00b7 drag to paint'}
+          {isOptions ? 'Tap to vote' : 'Tap slots to mark'}
         </p>
       )}
 

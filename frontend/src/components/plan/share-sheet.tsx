@@ -28,9 +28,7 @@ export function ShareSheet({ slug, title, participants, onClose }: ShareSheetPro
   const handleNativeShare = async () => {
     try {
       await navigator.share({
-        title,
-        text: `${title} — mark when you're free`,
-        url,
+        text: `${title} — mark when you're free\n${url}`,
       })
     } catch {
       // User cancelled or share failed — ignore
@@ -38,16 +36,17 @@ export function ShareSheet({ slug, title, participants, onClose }: ShareSheetPro
   }
 
   const handleWhatsApp = () => {
-    const text = encodeURIComponent(`${title} — mark when you're free: ${url}`)
-    window.open(`https://wa.me/?text=${text}`, '_blank')
+    const msg = `${title} — mark when you're free\n${url}`
+    const encoded = encodeURIComponent(msg)
+    // whatsapp://send works on both iOS and Android with the app installed
+    window.location.href = `whatsapp://send?text=${encoded}`
   }
 
   const handleNudgeAll = () => {
     const names = nonResponders.map(p => p.displayName).join(', ')
-    const text = encodeURIComponent(
-      `Hey ${names} — we're waiting on you! Mark when you're free for "${title}": ${url}`
-    )
-    window.open(`https://wa.me/?text=${text}`, '_blank')
+    const msg = `Hey ${names} — we're waiting on you! Mark when you're free for "${title}"\n${url}`
+    const encoded = encodeURIComponent(msg)
+    window.location.href = `whatsapp://send?text=${encoded}`
   }
 
   return (

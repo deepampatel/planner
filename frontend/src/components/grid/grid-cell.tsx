@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { CellState } from '@/lib/types'
@@ -8,7 +8,7 @@ import type { CellState } from '@/lib/types'
 interface GridCellProps {
   cellKey: string
   status: CellState
-  onPointerDown: (cellKey: string) => void
+  onPointerDown: (cellKey: string, pointerType?: string) => void
   onPointerEnter: (cellKey: string) => void
   disabled?: boolean
   othersCount?: number
@@ -32,6 +32,21 @@ export const GridCell = memo(function GridCell({
 }: GridCellProps) {
   const displayCount = othersCount ? Math.round(othersCount) : 0
 
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (disabled) return
+    // On touch devices: don't preventDefault (allow scroll) and don't enable drag.
+    // On mouse: preventDefault to enable drag-to-paint.
+    if (e.pointerType === 'mouse') {
+      e.preventDefault()
+    }
+    onPointerDown(cellKey, e.pointerType)
+  }, [disabled, cellKey, onPointerDown])
+
+  const handlePointerEnter = useCallback(() => {
+    if (disabled) return
+    onPointerEnter(cellKey)
+  }, [disabled, cellKey, onPointerEnter])
+
   return (
     <motion.div
       className={cn(
@@ -42,15 +57,8 @@ export const GridCell = memo(function GridCell({
           : 'cursor-pointer active:shadow-inner select-none',
       )}
       style={{ minHeight: cellHeight }}
-      onPointerDown={(e) => {
-        if (disabled) return
-        e.preventDefault()
-        onPointerDown(cellKey)
-      }}
-      onPointerEnter={() => {
-        if (disabled) return
-        onPointerEnter(cellKey)
-      }}
+      onPointerDown={handlePointerDown}
+      onPointerEnter={handlePointerEnter}
       whileTap={disabled ? undefined : { scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 500, damping: 25 }}
       layout

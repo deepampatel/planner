@@ -15,6 +15,7 @@ export function useGridInteraction(
   onCellUpdate: (slotStart: string, slotEnd: string, status: CellState) => void,
 ) {
   const stateRef = useRef<InteractionState>({ type: 'idle' })
+  const isTouchRef = useRef(false)
   const [renderKey, setRenderKey] = useState(0)
   const forceRender = () => setRenderKey(n => n + 1)
 
@@ -32,19 +33,26 @@ export function useGridInteraction(
     return { start, end }
   }
 
-  const handlePointerDown = useCallback((cellKey: string) => {
+  const handlePointerDown = useCallback((cellKey: string, pointerType?: string) => {
+    // Track whether this interaction is touch-based
+    isTouchRef.current = pointerType === 'touch' || pointerType === 'pen'
+
     // Guard: only start a new interaction from idle
     if (stateRef.current.type !== 'idle') {
-      // Clean up any stale state
       if (stateRef.current.type === 'pressing') {
         clearTimeout(stateRef.current.timer)
       }
       stateRef.current = { type: 'idle' }
     }
 
+    // On touch: skip the long-press timer (no drag mode on mobile)
+    if (isTouchRef.current) {
+      stateRef.current = { type: 'pressing', cellKey, timer: setTimeout(() => {}, 0) }
+      return
+    }
+
     const timer = setTimeout(() => {
-      // Long press → start maybe drag
-      // Check we're still in pressing state (not cancelled)
+      // Long press → start maybe drag (mouse only)
       if (stateRef.current.type !== 'pressing') return
       const { start, end } = parseKey(cellKey)
       onCellUpdate(start, end, 'maybe')
@@ -56,6 +64,9 @@ export function useGridInteraction(
   }, [onCellUpdate])
 
   const handlePointerEnter = useCallback((cellKey: string) => {
+    // On touch devices: no drag-to-paint. Scrolling takes priority.
+    if (isTouchRef.current) return
+
     const state = stateRef.current
 
     if (state.type === 'pressing' && cellKey !== state.cellKey) {
@@ -82,7 +93,7 @@ export function useGridInteraction(
     const state = stateRef.current
 
     if (state.type === 'pressing') {
-      // Short tap → cycle state
+      // Short tap → cycle state (works on both touch and mouse)
       clearTimeout(state.timer)
       const nextState = cycleCellState(state.cellKey)
       const { start, end } = parseKey(state.cellKey)
@@ -91,6 +102,7 @@ export function useGridInteraction(
 
     // Always reset to idle
     stateRef.current = { type: 'idle' }
+    isTouchRef.current = false
     forceRender()
   }, [cycleCellState, onCellUpdate])
 
