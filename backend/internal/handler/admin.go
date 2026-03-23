@@ -197,39 +197,61 @@ func (h *AdminHandler) Plans(w http.ResponseWriter, r *http.Request) {
 
 // --- Global activity feed ---
 
+type ActivityEntry struct {
+	ID        int    `json:"id"`
+	Actor     string `json:"actor"`
+	Action    string `json:"action"`
+	Details   string `json:"details"`
+	CreatedAt string `json:"createdAt"`
+	PlanTitle string `json:"planTitle"`
+	PlanSlug  string `json:"planSlug"`
+}
+
 func (h *AdminHandler) Activity(w http.ResponseWriter, r *http.Request) {
 	if !h.authenticate(r) {
 		respondError(w, http.StatusUnauthorized, "invalid admin token")
 		return
 	}
 
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	if limit < 1 || limit > 100 {
-		limit = 50
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if page < 1 {
+		page = 1
 	}
+	limit := 30
+	offset := (page - 1) * limit
 
-	rows, err := h.db.Query(`
+	action := r.URL.Query().Get("action")
+
+	query := `
 		SELECT a.id, a.actor_name, a.action, a.details, a.created_at, p.title, p.slug
 		FROM audit_logs a
 		JOIN plans p ON p.id = a.plan_id
-		ORDER BY a.created_at DESC
-		LIMIT ?
-	`, limit)
+		WHERE 1=1
+	`
+	countQuery := `
+		SELECT COUNT(*) FROM audit_logs a
+		JOIN plans p ON p.id = a.plan_id
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	countArgs := []interface{}{}
+
+	if action != "" {
+		query += " AND a.action = ?"
+		countQuery += " AND a.action = ?"
+		args = append(args, action)
+		countArgs = append(countArgs, action)
+	}
+
+	query += " ORDER BY a.created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := h.db.Query(query, args...)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	defer rows.Close()
-
-	type ActivityEntry struct {
-		ID        int    `json:"id"`
-		Actor     string `json:"actor"`
-		Action    string `json:"action"`
-		Details   string `json:"details"`
-		CreatedAt string `json:"createdAt"`
-		PlanTitle string `json:"planTitle"`
-		PlanSlug  string `json:"planSlug"`
-	}
 
 	var entries []ActivityEntry
 	for rows.Next() {
@@ -241,5 +263,13 @@ func (h *AdminHandler) Activity(w http.ResponseWriter, r *http.Request) {
 		entries = []ActivityEntry{}
 	}
 
-	respondJSON(w, http.StatusOK, entries)
+	var total int
+	h.db.QueryRow(countQuery, countArgs...).Scan(&total)
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"entries": entries,
+		"total":   total,
+		"page":    page,
+		"pages":   (total + limit - 1) / limit,
+	})
 }

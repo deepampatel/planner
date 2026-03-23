@@ -353,19 +353,28 @@ function PlansTab({ headers }: { headers: Record<string, string> }) {
 
 // --- Activity Tab ---
 
-function ActivityTab({ headers }: { headers: Record<string, string> }) {
-  const [entries, setEntries] = useState<ActivityEntry[]>([])
+interface ActivityResponse { entries: ActivityEntry[]; total: number; page: number; pages: number }
 
-  useEffect(() => {
-    adminFetch<ActivityEntry[]>('/api/admin/activity?limit=100', headers).then(setEntries).catch(() => {})
-  }, [headers])
+function ActivityTab({ headers }: { headers: Record<string, string> }) {
+  const [data, setData] = useState<ActivityResponse | null>(null)
+  const [action, setAction] = useState('')
+  const [page, setPage] = useState(1)
+
+  const fetchActivity = useCallback(() => {
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    if (action) params.set('action', action)
+    adminFetch<ActivityResponse>(`/api/admin/activity?${params}`, headers).then(setData).catch(() => {})
+  }, [headers, action, page])
+
+  useEffect(() => { fetchActivity() }, [fetchActivity])
 
   const actionLabels: Record<string, string> = {
     plan_created: 'created',
     plan_locked: 'locked',
     plan_renamed: 'renamed',
     participant_joined: 'joined',
-    availability_updated: 'updated availability on',
+    availability_updated: 'updated',
   }
 
   const actionColors: Record<string, string> = {
@@ -374,6 +383,12 @@ function ActivityTab({ headers }: { headers: Record<string, string> }) {
     participant_joined: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
     availability_updated: 'bg-muted text-muted-foreground',
     plan_renamed: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  }
+
+  const actionFilters = ['', 'plan_created', 'participant_joined', 'availability_updated', 'plan_locked', 'plan_renamed']
+  const filterLabels: Record<string, string> = {
+    '': 'All', plan_created: 'Created', participant_joined: 'Joined',
+    availability_updated: 'Updated', plan_locked: 'Locked', plan_renamed: 'Renamed',
   }
 
   const timeAgo = (dateStr: string): string => {
@@ -389,12 +404,27 @@ function ActivityTab({ headers }: { headers: Record<string, string> }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      {/* Action filter */}
+      <div className="flex flex-wrap gap-1 mb-4">
+        {actionFilters.map(a => (
+          <button
+            key={a}
+            onClick={() => { setAction(a); setPage(1) }}
+            className={`px-3 py-1.5 rounded-md text-tiny font-medium transition-colors ${
+              action === a ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {filterLabels[a] || a}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-card rounded-xl border border-border overflow-hidden">
-        {entries.length === 0 ? (
+        {!data || data.entries.length === 0 ? (
           <p className="px-4 py-8 text-center text-muted-foreground">No activity yet</p>
         ) : (
           <div className="divide-y divide-border/50">
-            {entries.map(entry => (
+            {data.entries.map(entry => (
               <div key={entry.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
                 <span className={`text-tiny font-medium px-2 py-0.5 rounded-full shrink-0 ${actionColors[entry.action] || 'bg-muted text-muted-foreground'}`}>
                   {actionLabels[entry.action] || entry.action}
@@ -412,6 +442,32 @@ function ActivityTab({ headers }: { headers: Record<string, string> }) {
                 <span className="text-tiny text-tertiary whitespace-nowrap shrink-0">{timeAgo(entry.createdAt)}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {data && data.pages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <span className="text-tiny text-tertiary">{data.total} entries</span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1 rounded text-tiny text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                ← Prev
+              </button>
+              <span className="px-3 py-1 text-tiny text-muted-foreground">
+                {page} / {data.pages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(data.pages, p + 1))}
+                disabled={page === data.pages}
+                className="px-3 py-1 rounded text-tiny text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                Next →
+              </button>
+            </div>
           </div>
         )}
       </div>
