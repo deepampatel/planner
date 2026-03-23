@@ -1,7 +1,6 @@
 'use client'
 
 import { memo, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import type { CellState } from '@/lib/types'
 
@@ -53,21 +52,18 @@ export const GridCell = memo(function GridCell({
   }, [disabled, cellKey, onPointerEnter])
 
   return (
-    <motion.div
+    <div
       className={cn(
-        'rounded-sm transition-colors duration-150 relative',
+        'rounded-sm transition-colors duration-100 relative',
         statusStyles[status],
         disabled
           ? 'cursor-default opacity-70'
-          : 'cursor-pointer active:shadow-inner select-none',
+          : 'cursor-pointer active:scale-95 active:shadow-inner select-none',
       )}
       style={{ minHeight: cellHeight }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerEnter={handlePointerEnter}
-      whileTap={disabled ? undefined : { scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-      layout
     >
       {displayCount > 0 && (
         <span
@@ -77,6 +73,6 @@ export const GridCell = memo(function GridCell({
           {displayCount}
         </span>
       )}
-    </motion.div>
+    </div>
   )
 })
