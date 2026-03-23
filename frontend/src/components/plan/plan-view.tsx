@@ -146,7 +146,18 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
         {needsJoin && !isLocked ? (
           <JoinForm slug={slug} onJoined={handleJoined} />
         ) : (
-          <AvailabilityGrid plan={plan} editToken={editToken} isHost={isHost} onRefresh={refetch} isRefreshing={isRefreshing} />
+          <>
+            {/* Identity indicator */}
+            {plan.myParticipantId && (() => {
+              const me = plan.participants.find(p => p.id === plan.myParticipantId)
+              return me ? (
+                <p className="text-tiny text-tertiary mb-4">
+                  Editing as <span className="font-medium text-muted-foreground">{me.displayName}</span>
+                </p>
+              ) : null
+            })()}
+            <AvailabilityGrid plan={plan} editToken={editToken} isHost={isHost} onRefresh={refetch} isRefreshing={isRefreshing} />
+          </>
         )}
 
         {/* Post-lock: Plan your next thing */}
