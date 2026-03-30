@@ -36,7 +36,7 @@ func New(
 
 	// Handlers
 	planH := handler.NewPlanHandler(planSvc, auditRepo)
-	participantH := handler.NewParticipantHandler(availSvc)
+	participantH := handler.NewParticipantHandler(availSvc, planSvc, availSvc.ParticipantRepo())
 	availH := handler.NewAvailabilityHandler(availSvc)
 	heatmapH := handler.NewHeatmapHandler(heatmapSvc)
 	authH := handler.NewAuthHandler(authSvc)
@@ -66,6 +66,7 @@ func New(
 				r.Get("/", planH.Get)
 				r.Patch("/", planH.Update)
 				r.Post("/join", participantH.Join)
+				r.Post("/recover", participantH.Recover)
 				r.Put("/availability", availH.Update)
 				r.Post("/lock", planH.Lock)
 				r.Get("/heatmap", heatmapH.Get)

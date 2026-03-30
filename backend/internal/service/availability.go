@@ -29,6 +29,11 @@ func NewAvailabilityService(
 	}
 }
 
+// ParticipantRepo exposes the participant repository for recovery handler.
+func (s *AvailabilityService) ParticipantRepo() *repository.ParticipantRepository {
+	return s.participantRepo
+}
+
 func (s *AvailabilityService) Update(ctx context.Context, editToken string, updates []model.AvailabilityUpdate) error {
 	participant, err := s.participantRepo.GetByEditToken(ctx, editToken)
 	if err != nil {

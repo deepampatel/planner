@@ -10,19 +10,21 @@ import { useAuth } from '@/hooks/use-auth'
 import { apiClient } from '@/lib/api'
 import { setToken } from '@/lib/token-store'
 import { detectTimezone } from '@/lib/timezone'
-import type { JoinResult } from '@/lib/types'
+import type { JoinResult, Participant } from '@/lib/types'
 
 interface JoinModalProps {
   slug: string
+  participants?: Participant[]
   onJoined: () => void
   onClose: () => void
 }
 
-export function JoinModal({ slug, onJoined, onClose }: JoinModalProps) {
+export function JoinModal({ slug, participants = [], onJoined, onClose }: JoinModalProps) {
   const { user, isLoading: authLoading } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [isJoining, setIsJoining] = useState(false)
+  const [recoveringId, setRecoveringId] = useState<number | null>(null)
 
   const joinPlan = async (displayName: string, contactEmail?: string) => {
     setIsJoining(true)
@@ -45,6 +47,23 @@ export function JoinModal({ slug, onJoined, onClose }: JoinModalProps) {
     }
   }
 
+  const recoverAccess = async (participant: Participant) => {
+    setRecoveringId(participant.id)
+    try {
+      const result = await apiClient<{ editToken: string }>(`/plans/${slug}/recover`, {
+        method: 'POST',
+        body: { participantId: participant.id },
+      })
+
+      setToken(`planfast_token_${slug}`, result.editToken)
+      toast.success(`Welcome back, ${participant.displayName}!`)
+      onJoined()
+    } catch {
+      toast.error('Failed to recover access.')
+      setRecoveringId(null)
+    }
+  }
+
   const handleGuestSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
@@ -55,6 +74,8 @@ export function JoinModal({ slug, onJoined, onClose }: JoinModalProps) {
     if (!user) return
     await joinPlan(user.displayName, user.email)
   }
+
+  const hasParticipants = participants.length > 0
 
   return (
     <>
@@ -79,6 +100,40 @@ export function JoinModal({ slug, onJoined, onClose }: JoinModalProps) {
 
         <h3 className="text-heading text-foreground mb-4">Join this plan</h3>
 
+        {/* Tap-to-recover: show existing participants */}
+        {hasParticipants && (
+          <div className="mb-5">
+            <p className="text-small text-muted-foreground mb-2.5">
+              Already here? Tap your name
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {participants.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => recoverAccess(p)}
+                  disabled={recoveringId !== null}
+                  className={`text-small px-3 py-1.5 rounded-full border transition-colors ${
+                    recoveringId === p.id
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-foreground hover:border-primary/50 hover:bg-primary/5'
+                  } disabled:opacity-50`}
+                >
+                  {recoveringId === p.id ? 'Reconnecting...' : p.displayName}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Divider between recovery and new join */}
+        {hasParticipants && (
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-tiny text-tertiary">or join as someone new</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+        )}
+
         {authLoading ? null : user ? (
           <div>
             <p className="text-body text-muted-foreground mb-4">
@@ -96,7 +151,7 @@ export function JoinModal({ slug, onJoined, onClose }: JoinModalProps) {
                   placeholder="Your name"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  autoFocus
+                  autoFocus={!hasParticipants}
                 />
                 {name.trim() && (
                   <motion.div

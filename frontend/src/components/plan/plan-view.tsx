@@ -395,6 +395,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
       {showJoinModal && (
         <JoinModal
           slug={slug}
+          participants={plan.participants}
           onJoined={handleJoined}
           onClose={() => setShowJoinModal(false)}
         />

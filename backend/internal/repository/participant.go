@@ -104,6 +104,13 @@ func (r *ParticipantRepository) GetByUserIDAndPlanID(ctx context.Context, userID
 	return &p, nil
 }
 
+// GetEditTokenByID returns the edit token for a participant. Used for tap-to-recover.
+func (r *ParticipantRepository) GetEditTokenByID(ctx context.Context, participantID, planID int64) (string, error) {
+	var token string
+	err := r.db.QueryRowContext(ctx, "SELECT edit_token FROM participants WHERE id = ? AND plan_id = ?", participantID, planID).Scan(&token)
+	return token, err
+}
+
 // LinkUserID associates a participant with a user account for identity recovery.
 func (r *ParticipantRepository) LinkUserID(ctx context.Context, participantID, userID int64) error {
 	_, err := r.db.ExecContext(ctx, "UPDATE participants SET user_id = ? WHERE id = ? AND (user_id IS NULL OR user_id = 0)", userID, participantID)
