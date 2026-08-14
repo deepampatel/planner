@@ -7,6 +7,7 @@ import confetti from 'canvas-confetti'
 import type { Plan, BestSlot, HeatmapResponse } from '@/lib/types'
 import { apiClient } from '@/lib/api'
 import { getToken } from '@/lib/token-store'
+import { DAY_PERIODS } from '@/lib/constants'
 
 interface TopTimesProps {
   plan: Plan
@@ -14,18 +15,56 @@ interface TopTimesProps {
   onLocked: () => void
 }
 
-function formatSlot(slot: BestSlot, granularity: string): string {
+function formatSlot(slot: BestSlot, granularity: string, timezone: string): string {
   const start = new Date(slot.start)
   const day = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  if (granularity === 'day') return day
+  if (granularity === 'day') {
+    // Day blocks are defined by their start hour in the PLAN's timezone —
+    // without the period label, two windows on the same day look identical
+    const hour = parseInt(
+      new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: timezone || 'UTC' }).format(start),
+      10
+    )
+    const period = DAY_PERIODS.slice().reverse().find(p => hour >= p.startHour)?.label
+    return period ? `${day} · ${period}` : day
+  }
   const end = new Date(slot.end)
   const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   return `${day} · ${fmt(start)} – ${fmt(end)}`
 }
 
+// "Payal, Shradha +3" instead of a five-name blame list; the +N expands
+function NameList({ names, expanded, onToggle, max = 2 }: {
+  names: string[]
+  expanded: boolean
+  onToggle: () => void
+  max?: number
+}) {
+  if (names.length <= max) return <>{names.join(', ')}</>
+  if (!expanded) {
+    return (
+      <>
+        {names.slice(0, max).join(', ')}{' '}
+        <button onClick={onToggle} className="underline hover:text-foreground transition-colors">
+          +{names.length - max}
+        </button>
+      </>
+    )
+  }
+  return (
+    <>
+      {names.join(', ')}{' '}
+      <button onClick={onToggle} className="underline hover:text-foreground transition-colors">
+        less
+      </button>
+    </>
+  )
+}
+
 export function TopTimes({ plan, isHost, onLocked }: TopTimesProps) {
   const [slots, setSlots] = useState<BestSlot[]>([])
   const [lockingIdx, setLockingIdx] = useState<number | null>(null)
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null)
 
   useEffect(() => {
     apiClient<HeatmapResponse>(`/plans/${plan.slug}/heatmap`)
@@ -41,7 +80,7 @@ export function TopTimes({ plan, isHost, onLocked }: TopTimesProps) {
   const allNames = plan.participants.map(p => p.displayName)
 
   const handleLock = async (slot: BestSlot, idx: number) => {
-    if (!confirm(`Lock in ${formatSlot(slot, plan.granularity)}? No more changes after this.`)) return
+    if (!confirm(`Lock in ${formatSlot(slot, plan.granularity, plan.timezone)}? No more changes after this.`)) return
     setLockingIdx(idx)
     try {
       const hostToken = getToken(`planfast_host_${plan.slug}`)
@@ -81,16 +120,35 @@ export function TopTimes({ plan, isHost, onLocked }: TopTimesProps) {
             >
               <div className="flex-1 min-w-0">
                 <p className="text-small font-medium text-foreground">
-                  {formatSlot(slot, plan.granularity)}
+                  {formatSlot(slot, plan.granularity, plan.timezone)}
                 </p>
-                <p className="text-tiny text-muted-foreground mt-0.5 truncate">
+                <p className="text-tiny text-muted-foreground mt-0.5">
                   {everyone ? (
                     <span className="text-emerald-700 dark:text-emerald-400">Everyone&apos;s free ✓</span>
                   ) : (
                     <>
-                      {slot.freeParticipants.length} of {plan.participantCount} free
-                      {slot.maybeParticipants.length > 0 && ` · ${slot.maybeParticipants.join(', ')} maybe`}
-                      {missing.length > 0 && ` · missing ${missing.join(', ')}`}
+                      <span className="font-medium text-foreground">{slot.freeParticipants.length} of {plan.participantCount} free</span>
+                      {slot.maybeParticipants.length > 0 && (
+                        <>
+                          {' · '}
+                          <NameList
+                            names={slot.maybeParticipants}
+                            expanded={expandedIdx === idx}
+                            onToggle={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+                          />
+                          {' maybe'}
+                        </>
+                      )}
+                      {missing.length > 0 && (
+                        <>
+                          {' · missing '}
+                          <NameList
+                            names={missing}
+                            expanded={expandedIdx === idx}
+                            onToggle={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+                          />
+                        </>
+                      )}
                     </>
                   )}
                 </p>

@@ -27,10 +27,12 @@
     --cell-none: 36 8% 88%;
 
     /* Heatmap — terracotta → amber → sage */
-    --heatmap-low: 8 50% 54%;
-    --heatmap-medium-low: 25 60% 50%;
-    --heatmap-medium-high: 40 68% 50%;
-    --heatmap-high: 152 32% 46%;
+    /* Single-hue density ramp — pale to deep green with a wide lightness
+       spread so adjacent buckets stay distinguishable at full opacity. */
+    --heatmap-low: 152 32% 86%;
+    --heatmap-medium-low: 152 32% 69%;
+    --heatmap-medium-high: 152 33% 52%;
+    --heatmap-high: 152 38% 36%;
   }
 
   .dark {
@@ -55,10 +57,10 @@
     --cell-maybe: 38 55% 42%;
     --cell-none: 28 5% 19%;
 
-    --heatmap-low: 8 42% 42%;
-    --heatmap-medium-low: 25 50% 40%;
-    --heatmap-medium-high: 40 58% 42%;
-    --heatmap-high: 152 28% 36%;
+    --heatmap-low: 152 20% 21%;
+    --heatmap-medium-low: 152 25% 29%;
+    --heatmap-medium-high: 152 30% 38%;
+    --heatmap-high: 152 36% 48%;
   }
 }
 

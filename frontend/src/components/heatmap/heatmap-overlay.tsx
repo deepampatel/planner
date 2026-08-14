@@ -22,8 +22,20 @@ function scoreToColor(score: number): string {
 }
 
 function scoreToOpacity(score: number): number {
-  if (score === 0) return 0.3
-  return 0.4 + score * 0.6
+  // Full opacity for any availability — modulating opacity on top of the
+  // lightness ramp made adjacent buckets indistinguishable
+  return score === 0 ? 0.3 : 1
+}
+
+// Count label inside a cell; readable on both pale and deep greens
+function CellCount({ cell }: { cell?: HeatmapCell }) {
+  if (!cell || cell.freeCount === 0) return null
+  const onDark = cell.score >= 0.5
+  return (
+    <span className={`text-[10px] font-semibold ${onDark ? 'text-white/90' : 'text-emerald-900/70'}`}>
+      {cell.freeCount}
+    </span>
+  )
 }
 
 export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
@@ -153,24 +165,6 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
     >
       {filterChips}
 
-      {heatmap.bestSlot && (
-        <div className="mb-4 p-3 rounded-lg border border-cell-free/30 bg-cell-free/5">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-cell-free animate-pulse-soft" />
-            <span className="text-small font-medium text-foreground">Best slot found</span>
-          </div>
-          <p className="text-small text-muted-foreground mt-1">
-            {new Date(heatmap.bestSlot.start).toLocaleString('en-US', {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-            })}
-            {' — '}
-            {heatmap.bestSlot.freeParticipants.length} free
-          </p>
-        </div>
-      )}
-
       <div className="overflow-x-auto -mx-1 px-1">
       <div className="grid gap-0.5 mb-1" style={{ gridTemplateColumns: `64px repeat(${dates.length}, minmax(36px, 1fr))` }}>
         <div />
@@ -199,10 +193,12 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
               return (
                 <div
                   key={cellKey}
-                  className={cn('rounded-sm transition-colors duration-slow', scoreToColor(score))}
+                  className={cn('rounded-sm transition-colors duration-slow flex items-center justify-center', scoreToColor(score))}
                   style={{ minHeight: 48, opacity: scoreToOpacity(score) }}
                   title={cell ? `${cell.freeCount} of ${cell.totalParticipants} free` : 'No data'}
-                />
+                >
+                  <CellCount cell={cell} />
+                </div>
               )
             })}
           </div>
@@ -251,23 +247,6 @@ function TimeHeatmap({ heatmap, dates, slots, slotsPerDay, timeLabels, cellMap, 
     >
       {filterChips}
 
-      {heatmap.bestSlot && (
-        <div className="mb-4 p-3 rounded-lg border border-cell-free/30 bg-cell-free/5">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-cell-free animate-pulse-soft" />
-            <span className="text-small font-medium text-foreground">Best slot found</span>
-          </div>
-          <p className="text-small text-muted-foreground mt-1">
-            {new Date(heatmap.bestSlot.start).toLocaleString('en-US', {
-              weekday: 'short', month: 'short', day: 'numeric',
-              hour: 'numeric', minute: '2-digit',
-            })}
-            {' — '}
-            {heatmap.bestSlot.freeParticipants.length} free
-          </p>
-        </div>
-      )}
-
       <div
         ref={scrollRef}
         className="overflow-x-auto overflow-y-auto -mx-1 px-1"
@@ -302,10 +281,12 @@ function TimeHeatmap({ heatmap, dates, slots, slotsPerDay, timeLabels, cellMap, 
                 return (
                   <div
                     key={cellKey}
-                    className={cn('rounded-sm transition-colors duration-slow', scoreToColor(score))}
+                    className={cn('rounded-sm transition-colors duration-slow flex items-center justify-center', scoreToColor(score))}
                     style={{ minHeight: 36, opacity: scoreToOpacity(score) }}
                     title={cell ? `${cell.freeCount} of ${cell.totalParticipants} free` : 'No data'}
-                  />
+                  >
+                    <CellCount cell={cell} />
+                  </div>
                 )
               })}
             </div>
