@@ -20,4 +20,5 @@ type BestSlot struct {
 type HeatmapResponse struct {
 	Cells    []HeatmapCell `json:"cells"`
 	BestSlot *BestSlot     `json:"bestSlot,omitempty"`
+	TopSlots []BestSlot    `json:"topSlots,omitempty"`
 }

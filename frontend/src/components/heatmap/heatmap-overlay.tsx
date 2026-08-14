@@ -73,7 +73,8 @@ export function HeatmapOverlay({ plan }: HeatmapOverlayProps) {
   }, [heatmap])
 
   const dates = useMemo(() => getDatesInRange(plan.dateRangeStart, plan.dateRangeEnd), [plan.dateRangeStart, plan.dateRangeEnd])
-  const useTimeGrid = plan.granularity === 'time' || dates.length <= 3
+  // Must mirror the availability grid: day plans always use day blocks
+  const useTimeGrid = plan.granularity === 'time'
 
   if (loading) {
     return (

@@ -21,6 +21,8 @@ export interface Plan {
   status: PlanStatus
   timezone: string
   customOptions?: CustomOption[]
+  finalizedSlotStart?: string
+  finalizedSlotEnd?: string
   participantCount: number
   participants: Participant[]
   myParticipantId?: number
@@ -72,6 +74,7 @@ export interface BestSlot {
 export interface HeatmapResponse {
   cells: HeatmapCell[]
   bestSlot?: BestSlot
+  topSlots?: BestSlot[]
 }
 
 export interface PlanWithTokens {

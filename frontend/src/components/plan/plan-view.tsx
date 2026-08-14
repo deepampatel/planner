@@ -13,6 +13,8 @@ import { PlanHeader } from './plan-header'
 import { JoinModal } from './join-modal'
 import { ShareSheet } from './share-sheet'
 import { AvailabilityGrid } from '@/components/grid/availability-grid'
+import { TopTimes } from '@/components/heatmap/top-times'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDateRange } from '@/lib/timezone'
@@ -84,13 +86,42 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
   )
   const totalCount = plan.participantCount
 
-  // Fetch best slot for locked plans (calendar + share)
+  // Fetch best slot for locked plans without a finalized slot (legacy locks)
   useEffect(() => {
-    if (plan.status !== 'locked') return
+    if (plan.status !== 'locked' || plan.finalizedSlotStart) return
     apiClient<HeatmapResponse>(`/plans/${slug}/heatmap`)
       .then(data => setBestSlot(data.bestSlot || null))
       .catch(() => {})
-  }, [plan.status, slug])
+  }, [plan.status, plan.finalizedSlotStart, slug])
+
+  // The slot this plan is locked to: host-picked if present, else heatmap best
+  const eventSlot: BestSlot | null = useMemo(() => {
+    if (plan.finalizedSlotStart && plan.finalizedSlotEnd) {
+      return {
+        start: plan.finalizedSlotStart,
+        end: plan.finalizedSlotEnd,
+        score: 1,
+        freeParticipants: [],
+        maybeParticipants: [],
+      }
+    }
+    return bestSlot
+  }, [plan.finalizedSlotStart, plan.finalizedSlotEnd, bestSlot])
+
+  const handleUnlock = async () => {
+    if (!confirm('Reopen this plan? The locked time will be cleared.')) return
+    try {
+      const hostToken = getToken(`planfast_host_${slug}`)
+      await apiClient(`/plans/${slug}/unlock`, {
+        method: 'POST',
+        editToken: hostToken || '',
+      })
+      toast.success('Plan reopened')
+      refetch()
+    } catch {
+      toast.error('Failed to reopen plan')
+    }
+  }
 
   // Auto-open join modal for non-joined visitors on active plans
   useEffect(() => {
@@ -136,6 +167,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
     switch (entry.action) {
       case 'plan_created': return `${entry.actorName} created this plan`
       case 'plan_locked': return 'Plan was locked'
+      case 'plan_unlocked': return 'Plan was reopened'
       case 'plan_renamed': return `${entry.actorName || 'Host'} renamed to "${entry.details}"`
       case 'participant_joined': return `${entry.actorName} joined`
       case 'availability_updated': return `${entry.actorName} updated availability`
@@ -249,6 +281,11 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
 
         <div className="border-b border-border mb-6" />
 
+        {/* Top suggested times — the answer, not just the heatmap */}
+        {!isLocked && !needsJoin && (
+          <TopTimes plan={plan} isHost={isHost} onLocked={refetch} />
+        )}
+
         {/* Grid-first: always show grid. Preview mode when not joined. */}
         {needsJoin && !isLocked && (
           <p className="text-small text-muted-foreground mb-4">
@@ -328,17 +365,20 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            {bestSlot && (
+            {eventSlot && (
               <div className="mb-6">
-                <p className="text-small text-muted-foreground mb-3">
-                  Best time: {new Date(bestSlot.start).toLocaleString('en-US', {
-                    weekday: 'short', month: 'short', day: 'numeric',
-                    hour: 'numeric', minute: '2-digit',
+                <p className="text-body font-medium text-foreground mb-1">
+                  📍 {new Date(eventSlot.start).toLocaleString('en-US', {
+                    weekday: 'long', month: 'short', day: 'numeric',
+                    ...(plan.granularity !== 'day' ? { hour: 'numeric', minute: '2-digit' } as const : {}),
                   })}
+                </p>
+                <p className="text-small text-muted-foreground mb-3">
+                  {plan.finalizedSlotStart ? 'Locked in. See you there.' : 'Best time based on availability.'}
                 </p>
                 <div className="flex gap-2 justify-center">
                   <a
-                    href={googleCalendarUrl(plan.title, plan.location, bestSlot.start, bestSlot.end)}
+                    href={googleCalendarUrl(plan.title, plan.location, eventSlot.start, eventSlot.end)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-small text-foreground hover:bg-accent transition-colors"
@@ -349,7 +389,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
                     Google Calendar
                   </a>
                   <button
-                    onClick={() => downloadICS(plan.title, plan.location, bestSlot.start, bestSlot.end)}
+                    onClick={() => downloadICS(plan.title, plan.location, eventSlot.start, eventSlot.end)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-small text-foreground hover:bg-accent transition-colors"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -366,6 +406,16 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
             <Link href="/">
               <Button variant="primary">Create another plan</Button>
             </Link>
+            {isHost && (
+              <p className="mt-4">
+                <button
+                  onClick={handleUnlock}
+                  className="text-tiny text-tertiary hover:text-muted-foreground underline transition-colors"
+                >
+                  Change of plans? Reopen
+                </button>
+              </p>
+            )}
           </motion.div>
         )}
         </div>
@@ -386,7 +436,7 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           title={plan.title}
           participants={plan.participants}
           isLocked={isLocked}
-          bestSlot={bestSlot || undefined}
+          bestSlot={eventSlot || undefined}
           location={plan.location}
           onClose={() => setShowShare(false)}
         />

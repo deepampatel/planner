@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/deepampatel/planfast/internal/model"
 	"github.com/deepampatel/planfast/internal/repository"
@@ -108,46 +111,61 @@ func (s *HeatmapService) Compute(ctx context.Context, slug string, filterIDs []i
 		cells = append(cells, cell)
 	}
 
-	// Find best slot
-	bestSlot := findBestSlot(plan, cells, slotMap)
+	// Rank candidate windows; best slot is the top one
+	topSlots := findTopSlots(plan, cells, slotMap, 3)
+	var bestSlot *model.BestSlot
+	if len(topSlots) > 0 {
+		bestSlot = &topSlots[0]
+	}
 
 	return &model.HeatmapResponse{
 		Cells:    cells,
 		BestSlot: bestSlot,
+		TopSlots: topSlots,
 	}, nil
 }
 
-func findBestSlot(plan *model.Plan, cells []model.HeatmapCell, slotMap map[string]*slotAgg) *model.BestSlot {
+// findTopSlots ranks candidate windows and returns up to n non-overlapping
+// results, best first. For options mode each option is its own candidate.
+func findTopSlots(plan *model.Plan, cells []model.HeatmapCell, slotMap map[string]*slotAgg, n int) []model.BestSlot {
 	if len(cells) == 0 {
 		return nil
 	}
 
-	// Options mode: find single highest-scoring option
+	// Options mode: rank options by score
 	if plan.Granularity == "options" {
-		bestIdx := -1
-		bestScore := 0.0
+		type scored struct {
+			idx   int
+			score float64
+		}
+		var ranked []scored
 		for i, cell := range cells {
-			if cell.Score > bestScore {
-				bestScore = cell.Score
-				bestIdx = i
+			if cell.Score > 0 {
+				ranked = append(ranked, scored{i, cell.Score})
 			}
 		}
-		if bestIdx < 0 || bestScore <= 0 {
-			return nil
+		sort.SliceStable(ranked, func(a, b int) bool { return ranked[a].score > ranked[b].score })
+		if len(ranked) > n {
+			ranked = ranked[:n]
 		}
-		key := cells[bestIdx].SlotStart + "|" + cells[bestIdx].SlotEnd
-		var freeNames, maybeNames []string
-		if agg, ok := slotMap[key]; ok {
-			freeNames = agg.freeNames
-			maybeNames = agg.maybeNames
+		out := make([]model.BestSlot, 0, len(ranked))
+		for _, s := range ranked {
+			cell := cells[s.idx]
+			key := cell.SlotStart + "|" + cell.SlotEnd
+			var freeNames, maybeNames []string
+			if agg, ok := slotMap[key]; ok {
+				freeNames = agg.freeNames
+				maybeNames = agg.maybeNames
+			}
+			out = append(out, model.BestSlot{
+				Start:             cell.SlotStart,
+				End:               cell.SlotEnd,
+				Score:             s.score,
+				FreeParticipants:  freeNames,
+				MaybeParticipants: maybeNames,
+			})
 		}
-		return &model.BestSlot{
-			Start:             cells[bestIdx].SlotStart,
-			End:               cells[bestIdx].SlotEnd,
-			Score:             bestScore,
-			FreeParticipants:  freeNames,
-			MaybeParticipants: maybeNames,
-		}
+		return out
 	}
 
 	slotDuration := 30 // minutes for time granularity
@@ -159,64 +177,89 @@ func findBestSlot(plan *model.Plan, cells []model.HeatmapCell, slotMap map[strin
 	if windowSize < 1 {
 		windowSize = 1
 	}
-
 	if windowSize > len(cells) {
 		windowSize = len(cells)
 	}
 
-	bestScore := -1.0
-	bestStart := 0
-
+	// Score every window that doesn't cross a day boundary
+	type window struct {
+		start int
+		score float64
+	}
+	var windows []window
 	for i := 0; i <= len(cells)-windowSize; i++ {
+		if cells[i].SlotStart[:10] != cells[i+windowSize-1].SlotStart[:10] {
+			continue // window spans two dates
+		}
 		windowScore := 0.0
 		for j := i; j < i+windowSize; j++ {
 			windowScore += cells[j].Score
 		}
 		avgScore := windowScore / float64(windowSize)
-
-		if avgScore > bestScore {
-			bestScore = avgScore
-			bestStart = i
+		if avgScore > 0 {
+			windows = append(windows, window{i, avgScore})
 		}
 	}
 
-	if bestScore <= 0 {
-		return nil
-	}
+	sort.SliceStable(windows, func(a, b int) bool { return windows[a].score > windows[b].score })
 
-	// Collect participant names for the best window
-	freeSet := make(map[string]bool)
-	maybeSet := make(map[string]bool)
-	for j := bestStart; j < bestStart+windowSize; j++ {
-		key := cells[j].SlotStart + "|" + cells[j].SlotEnd
-		if agg, ok := slotMap[key]; ok {
-			for _, name := range agg.freeNames {
-				freeSet[name] = true
-			}
-			for _, name := range agg.maybeNames {
-				maybeSet[name] = true
+	// Greedily pick non-overlapping windows, best first
+	out := make([]model.BestSlot, 0, n)
+	taken := make([]bool, len(cells))
+	for _, w := range windows {
+		if len(out) >= n {
+			break
+		}
+		overlaps := false
+		for j := w.start; j < w.start+windowSize; j++ {
+			if taken[j] {
+				overlaps = true
+				break
 			}
 		}
-	}
-
-	freeNames := make([]string, 0, len(freeSet))
-	for name := range freeSet {
-		freeNames = append(freeNames, name)
-	}
-	maybeNames := make([]string, 0, len(maybeSet))
-	for name := range maybeSet {
-		if !freeSet[name] { // Don't double-count
-			maybeNames = append(maybeNames, name)
+		if overlaps {
+			continue
 		}
+		for j := w.start; j < w.start+windowSize; j++ {
+			taken[j] = true
+		}
+
+		freeSet := make(map[string]bool)
+		maybeSet := make(map[string]bool)
+		for j := w.start; j < w.start+windowSize; j++ {
+			key := cells[j].SlotStart + "|" + cells[j].SlotEnd
+			if agg, ok := slotMap[key]; ok {
+				for _, name := range agg.freeNames {
+					freeSet[name] = true
+				}
+				for _, name := range agg.maybeNames {
+					maybeSet[name] = true
+				}
+			}
+		}
+		freeNames := make([]string, 0, len(freeSet))
+		for name := range freeSet {
+			freeNames = append(freeNames, name)
+		}
+		sort.Strings(freeNames)
+		maybeNames := make([]string, 0, len(maybeSet))
+		for name := range maybeSet {
+			if !freeSet[name] { // Don't double-count
+				maybeNames = append(maybeNames, name)
+			}
+		}
+		sort.Strings(maybeNames)
+
+		out = append(out, model.BestSlot{
+			Start:             cells[w.start].SlotStart,
+			End:               cells[w.start+windowSize-1].SlotEnd,
+			Score:             w.score,
+			FreeParticipants:  freeNames,
+			MaybeParticipants: maybeNames,
+		})
 	}
 
-	return &model.BestSlot{
-		Start:             cells[bestStart].SlotStart,
-		End:               cells[bestStart+windowSize-1].SlotEnd,
-		Score:             bestScore,
-		FreeParticipants:  freeNames,
-		MaybeParticipants: maybeNames,
-	}
+	return out
 }
 
 type slot struct {
@@ -244,6 +287,8 @@ func generateSlots(plan *model.Plan) []slot {
 	// time.Date(y, m, d, h, 0, 0, 0, loc).UTC() gives the correct UTC equivalent.
 	loc, err := time.LoadLocation(plan.Timezone)
 	if err != nil {
+		log.Warn().Str("timezone", plan.Timezone).Int64("planId", plan.ID).
+			Msg("unknown timezone, falling back to UTC — heatmap slots may not match stored availability")
 		loc = time.UTC // fallback
 	}
 

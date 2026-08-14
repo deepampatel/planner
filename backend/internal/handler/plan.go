@@ -121,12 +121,38 @@ func (h *PlanHandler) Lock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.Lock(r.Context(), slug, hostToken); err != nil {
+	// Optional body: the specific slot the host is finalizing
+	var input struct {
+		SlotStart string `json:"slotStart"`
+		SlotEnd   string `json:"slotEnd"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&input)
+	}
+
+	if err := h.svc.Lock(r.Context(), slug, hostToken, input.SlotStart, input.SlotEnd); err != nil {
 		respondError(w, http.StatusForbidden, err.Error())
 		return
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"status": "locked"})
+}
+
+func (h *PlanHandler) Unlock(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	hostToken := r.Header.Get("X-Edit-Token")
+
+	if hostToken == "" {
+		respondError(w, http.StatusUnauthorized, "host token required")
+		return
+	}
+
+	if err := h.svc.Unlock(r.Context(), slug, hostToken); err != nil {
+		respondError(w, http.StatusForbidden, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"status": "active"})
 }
 
 func (h *PlanHandler) Update(w http.ResponseWriter, r *http.Request) {

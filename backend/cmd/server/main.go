@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	// Embed the IANA timezone database — the host may lack legacy zone
+	// names like Asia/Calcutta (Ubuntu 24.04 ships them in tzdata-legacy).
+	_ "time/tzdata"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite"

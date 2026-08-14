@@ -8,7 +8,6 @@ import { TimeGrid } from './time-grid'
 import { DayGrid } from './day-grid'
 import { OptionsGrid } from './options-grid'
 import { HeatmapOverlay } from '@/components/heatmap/heatmap-overlay'
-import { daysBetween } from '@/lib/slot-utils'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface AvailabilityGridProps {
@@ -97,8 +96,9 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
   )
 
   const isOptions = plan.granularity === 'options'
-  const days = isOptions ? 0 : daysBetween(plan.dateRangeStart, plan.dateRangeEnd)
-  const useTimeGrid = plan.granularity === 'time' || days <= 3
+  // Day plans must always use the day grid — stored slots have to match the
+  // backend's 4-hour heatmap blocks, regardless of how short the range is.
+  const useTimeGrid = plan.granularity === 'time'
 
   return (
     <div>

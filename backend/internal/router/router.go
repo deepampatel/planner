@@ -69,6 +69,7 @@ func New(
 				r.Post("/recover", participantH.Recover)
 				r.Put("/availability", availH.Update)
 				r.Post("/lock", planH.Lock)
+				r.Post("/unlock", planH.Unlock)
 				r.Get("/heatmap", heatmapH.Get)
 				r.Get("/activity", planH.Activity)
 			})

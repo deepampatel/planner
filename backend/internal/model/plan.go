@@ -37,6 +37,8 @@ type Plan struct {
 	Status           PlanStatus       `json:"status"`
 	Timezone         string           `json:"timezone"`
 	CustomOptions    json.RawMessage  `json:"customOptions,omitempty"`
+	FinalizedSlotStart *string        `json:"finalizedSlotStart,omitempty"`
+	FinalizedSlotEnd   *string        `json:"finalizedSlotEnd,omitempty"`
 	ParticipantCount int              `json:"participantCount"`
 	Participants     []Participant    `json:"participants"`
 	MyParticipantID  *int64           `json:"myParticipantId,omitempty"`

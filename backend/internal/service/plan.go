@@ -155,7 +155,7 @@ func (s *PlanService) GetBySlug(ctx context.Context, slug string, editToken stri
 	return plan, nil
 }
 
-func (s *PlanService) Lock(ctx context.Context, slug string, hostToken string) error {
+func (s *PlanService) Lock(ctx context.Context, slug string, hostToken string, slotStart, slotEnd string) error {
 	plan, err := s.planRepo.GetBySlug(ctx, slug)
 	if err != nil {
 		return fmt.Errorf("plan not found: %w", err)
@@ -170,11 +170,38 @@ func (s *PlanService) Lock(ctx context.Context, slug string, hostToken string) e
 		return fmt.Errorf("unauthorized: invalid host token")
 	}
 
-	if err := s.planRepo.Lock(ctx, plan.ID); err != nil {
+	if (slotStart == "") != (slotEnd == "") {
+		return fmt.Errorf("slotStart and slotEnd must be provided together")
+	}
+
+	if err := s.planRepo.Lock(ctx, plan.ID, slotStart, slotEnd); err != nil {
 		return err
 	}
 
-	s.auditRepo.Log(ctx, plan.ID, "", "plan_locked", "")
+	s.auditRepo.Log(ctx, plan.ID, "", "plan_locked", slotStart)
+	return nil
+}
+
+func (s *PlanService) Unlock(ctx context.Context, slug string, hostToken string) error {
+	plan, err := s.planRepo.GetBySlug(ctx, slug)
+	if err != nil {
+		return fmt.Errorf("plan not found: %w", err)
+	}
+
+	storedToken, err := s.planRepo.GetHostToken(ctx, plan.ID)
+	if err != nil {
+		return fmt.Errorf("fetching host token: %w", err)
+	}
+
+	if storedToken != hostToken {
+		return fmt.Errorf("unauthorized: invalid host token")
+	}
+
+	if err := s.planRepo.Unlock(ctx, plan.ID); err != nil {
+		return err
+	}
+
+	s.auditRepo.Log(ctx, plan.ID, "", "plan_unlocked", "")
 	return nil
 }
 
