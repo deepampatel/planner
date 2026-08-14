@@ -42,20 +42,27 @@ export async function generateMetadata(
   let description: string
 
   if (plan.status === 'locked') {
-    // Fetch heatmap for best slot
-    const heatmap = await getHeatmap(slug)
-    if (heatmap?.bestSlot) {
+    // Prefer the host-picked slot; fall back to heatmap best for legacy locks
+    let slotStart = plan.finalizedSlotStart
+    if (!slotStart) {
+      const heatmap = await getHeatmap(slug)
+      slotStart = heatmap?.bestSlot?.start
+    }
+    if (slotStart) {
       const bestDate = new Intl.DateTimeFormat('en-US', {
         weekday: 'short', month: 'short', day: 'numeric',
-        hour: 'numeric', minute: '2-digit',
-        timeZone: 'UTC',
-      }).format(new Date(heatmap.bestSlot.start))
-      description = `Best time: ${bestDate}. ${plan.participantCount} people planned.`
+        ...(plan.granularity !== 'day' ? { hour: 'numeric', minute: '2-digit' } : {}),
+        timeZone: plan.timezone || 'UTC',
+      }).format(new Date(slotStart))
+      description = `It's happening: ${bestDate}. ${plan.participantCount} people planned.`
     } else {
       description = `Plan locked. ${plan.participantCount} people planned.`
     }
   } else {
-    description = `${respondedCount} of ${plan.participantCount} responded. Tap to join and mark your availability!`
+    const deadline = plan.respondBy
+      ? ` Respond by ${new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(plan.respondBy + 'T00:00:00Z'))}.`
+      : ''
+    description = `${respondedCount} of ${plan.participantCount} responded.${deadline} Tap to mark your availability — takes 20 seconds.`
   }
 
   const dateRange = plan.granularity !== 'options'

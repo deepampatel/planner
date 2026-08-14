@@ -39,6 +39,7 @@ type Plan struct {
 	CustomOptions    json.RawMessage  `json:"customOptions,omitempty"`
 	FinalizedSlotStart *string        `json:"finalizedSlotStart,omitempty"`
 	FinalizedSlotEnd   *string        `json:"finalizedSlotEnd,omitempty"`
+	RespondBy          *string        `json:"respondBy,omitempty"`
 	ParticipantCount int              `json:"participantCount"`
 	Participants     []Participant    `json:"participants"`
 	MyParticipantID  *int64           `json:"myParticipantId,omitempty"`
@@ -58,6 +59,7 @@ type CreatePlanInput struct {
 	CustomSlug      string          `json:"customSlug,omitempty"`
 	HostName        string          `json:"hostName"`
 	CustomOptions   json.RawMessage `json:"customOptions,omitempty"`
+	RespondBy       string          `json:"respondBy,omitempty"`
 }
 
 type PlanWithTokens struct {

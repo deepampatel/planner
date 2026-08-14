@@ -12,25 +12,45 @@ interface ShareSheetProps {
   isLocked?: boolean
   bestSlot?: BestSlot
   location?: string
+  dateRange?: string
+  respondBy?: string
   onClose: () => void
 }
 
-export function ShareSheet({ slug, title, participants, isLocked, bestSlot, location, onClose }: ShareSheetProps) {
+function formatDeadline(respondBy: string): string {
+  return new Date(respondBy + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+export function ShareSheet({ slug, title, participants, isLocked, bestSlot, location, dateRange, respondBy, onClose }: ShareSheetProps) {
   const [copied, setCopied] = useState(false)
   const url = typeof window !== 'undefined' ? `${window.location.origin}/plan/${slug}` : ''
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
 
   const nonResponders = participants?.filter(p => !p.hasResponded) ?? []
 
+  const [copiedUrl, setCopiedUrl] = useState(false)
+
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(url)
+    await navigator.clipboard.writeText(shareMessage)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const handleCopyUrl = async () => {
+    await navigator.clipboard.writeText(url)
+    setCopiedUrl(true)
+    setTimeout(() => setCopiedUrl(false), 2000)
+  }
+
   const shareMessage = isLocked && bestSlot
     ? `✅ We're going! ${title}\n📅 ${new Date(bestSlot.start).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${location ? `\n📍 ${location}` : ''}\n${url}`
-    : `${title} — mark when you're free\n${url}`
+    : [
+        `📅 ${title}`,
+        dateRange,
+        respondBy ? `⏳ Respond by ${formatDeadline(respondBy)}` : null,
+        `Mark when you're free — takes 20 seconds`,
+        url,
+      ].filter(Boolean).join('\n')
 
   const handleNativeShare = async () => {
     try {
@@ -55,7 +75,8 @@ export function ShareSheet({ slug, title, participants, isLocked, bestSlot, loca
 
   const handleNudgeAll = () => {
     const names = nonResponders.map(p => p.displayName).join(', ')
-    openWhatsApp(`Hey ${names} — we're waiting on you! Mark when you're free for "${title}"\n${url}`)
+    const deadline = respondBy ? ` before ${formatDeadline(respondBy)}` : ''
+    openWhatsApp(`Hey ${names} — we're waiting on you! 👀 Mark when you're free for "${title}"${deadline} — takes 20 seconds\n${url}`)
   }
 
   return (
@@ -84,29 +105,46 @@ export function ShareSheet({ slug, title, participants, isLocked, bestSlot, loca
           {isLocked ? 'Share the result' : 'Share this plan'}
         </h3>
 
-        {/* URL + Copy */}
-        <div className="flex items-center gap-2 bg-muted rounded-lg p-3 mb-5">
-          <span className="text-small text-foreground flex-1 truncate font-mono">{url}</span>
-          <button
-            onClick={handleCopy}
-            className={`text-small font-medium px-2 py-1 rounded-md transition-colors duration-fast ${
-              copied
-                ? 'text-cell-free'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-            }`}
-          >
-            {copied ? (
-              <span className="flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-                Copied
-              </span>
-            ) : (
-              'Copy'
-            )}
-          </button>
+        {/* Message preview + copy */}
+        <div className="bg-muted rounded-lg p-3 mb-3">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <span className="text-tiny font-medium text-tertiary uppercase tracking-wider">Message preview</span>
+            <button
+              onClick={handleCopy}
+              className={`text-small font-medium px-2 py-0.5 rounded-md transition-colors duration-fast shrink-0 ${
+                copied
+                  ? 'text-cell-free'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+              }`}
+            >
+              {copied ? (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  Copied
+                </span>
+              ) : (
+                'Copy'
+              )}
+            </button>
+          </div>
+          <p className="text-small text-foreground whitespace-pre-line break-words leading-relaxed">
+            {shareMessage}
+          </p>
         </div>
+
+        {/* Bare link for people who just want the URL */}
+        <button
+          onClick={handleCopyUrl}
+          className="flex items-center gap-1.5 mb-5 text-tiny text-tertiary hover:text-muted-foreground transition-colors max-w-full"
+        >
+          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+          </svg>
+          <span className="truncate font-mono">{url}</span>
+          <span className="shrink-0 underline">{copiedUrl ? 'copied ✓' : 'copy link only'}</span>
+        </button>
 
         {/* Share buttons */}
         <div className="flex flex-col gap-2">

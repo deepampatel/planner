@@ -69,6 +69,14 @@ func (s *PlanService) Create(ctx context.Context, input model.CreatePlanInput) (
 		customOptionsStr = &s
 	}
 
+	var respondBy *string
+	if input.RespondBy != "" {
+		if _, err := time.Parse("2006-01-02", input.RespondBy); err != nil {
+			return nil, fmt.Errorf("respondBy must be a YYYY-MM-DD date")
+		}
+		respondBy = &input.RespondBy
+	}
+
 	plan, err := s.planRepo.Create(ctx, repository.CreatePlanParams{
 		Slug:            slug,
 		CustomSlug:      customSlug,
@@ -82,6 +90,7 @@ func (s *PlanService) Create(ctx context.Context, input model.CreatePlanInput) (
 		Status:          "active",
 		Timezone:        input.Timezone,
 		CustomOptions:   customOptionsStr,
+		RespondBy:       respondBy,
 		ExpiresAt:       expiresAt,
 	})
 	if err != nil {

@@ -21,6 +21,7 @@ export function CreateForm() {
   const [hostName, setHostName] = useState('')
   const [dateStart, setDateStart] = useState('')
   const [dateEnd, setDateEnd] = useState('')
+  const [respondBy, setRespondBy] = useState('')
   const [isOptions, setIsOptions] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -80,6 +81,7 @@ export function CreateForm() {
           durationMinutes: 60,
           granularity,
           timezone: detectTimezone(),
+          ...(respondBy ? { respondBy } : {}),
           ...(isOptions ? { customOptions } : {}),
         },
       })
@@ -159,6 +161,18 @@ export function CreateForm() {
                     className="w-full bg-transparent text-body text-foreground border-b border-border/60 focus:border-foreground/30 py-2.5 outline-none transition-colors duration-fast"
                   />
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="text-tiny text-tertiary mb-1 block">Respond by <span className="text-tertiary/60">(optional)</span></label>
+                <input
+                  type="date"
+                  value={respondBy}
+                  min={today}
+                  max={dateEnd || undefined}
+                  onChange={e => setRespondBy(e.target.value)}
+                  className="w-full bg-transparent text-body text-foreground border-b border-border/60 focus:border-foreground/30 py-2.5 outline-none transition-colors duration-fast"
+                />
               </div>
 
               <button

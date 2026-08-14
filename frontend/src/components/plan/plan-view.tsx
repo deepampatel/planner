@@ -226,6 +226,14 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
             </svg>
             {plan.participantCount} {plan.participantCount === 1 ? 'person' : 'people'}
           </span>
+          {plan.respondBy && !isLocked && (
+            <span className="flex items-center gap-1 text-small font-medium text-amber-700 dark:text-amber-400">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Respond by {new Date(plan.respondBy + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </span>
+          )}
           {isLocked && <Badge variant="locked">Locked</Badge>}
         </div>
 
@@ -438,6 +446,8 @@ export function PlanView({ initialData, slug }: PlanViewProps) {
           isLocked={isLocked}
           bestSlot={eventSlot || undefined}
           location={plan.location}
+          dateRange={plan.granularity !== 'options' ? formatDateRange(plan.dateRangeStart, plan.dateRangeEnd) : undefined}
+          respondBy={plan.respondBy}
           onClose={() => setShowShare(false)}
         />
       )}

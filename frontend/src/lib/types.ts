@@ -23,6 +23,7 @@ export interface Plan {
   customOptions?: CustomOption[]
   finalizedSlotStart?: string
   finalizedSlotEnd?: string
+  respondBy?: string
   participantCount: number
   participants: Participant[]
   myParticipantId?: number
@@ -108,4 +109,5 @@ export interface CreatePlanInput {
   customSlug?: string
   hostName: string
   customOptions?: CustomOption[]
+  respondBy?: string
 }

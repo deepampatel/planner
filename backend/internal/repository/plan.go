@@ -31,28 +31,29 @@ type CreatePlanParams struct {
 	Timezone        string
 	ExpiresAt       string
 	CustomOptions   *string // JSON string, nullable
+	RespondBy       *string
 }
 
 func (r *PlanRepository) Create(ctx context.Context, p CreatePlanParams) (*model.Plan, error) {
 	query := `
 		INSERT INTO plans (slug, custom_slug, title, location, date_range_start, date_range_end,
-			duration_minutes, granularity, host_token, status, timezone, custom_options, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			duration_minutes, granularity, host_token, status, timezone, custom_options, respond_by, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id, slug, custom_slug, title, location, date_range_start, date_range_end,
-			duration_minutes, granularity, status, timezone, custom_options, finalized_slot_start, finalized_slot_end, created_at, updated_at, expires_at`
+			duration_minutes, granularity, status, timezone, custom_options, finalized_slot_start, finalized_slot_end, respond_by, created_at, updated_at, expires_at`
 
 	var plan model.Plan
 	var customSlug sql.NullString
 	var customOptions sql.NullString
-	var finalStart, finalEnd sql.NullString
+	var finalStart, finalEnd, respondBy sql.NullString
 	err := r.db.QueryRowContext(ctx, query,
 		p.Slug, p.CustomSlug, p.Title, p.Location, p.DateRangeStart, p.DateRangeEnd,
-		p.DurationMinutes, p.Granularity, p.HostToken, p.Status, p.Timezone, p.CustomOptions, p.ExpiresAt,
+		p.DurationMinutes, p.Granularity, p.HostToken, p.Status, p.Timezone, p.CustomOptions, p.RespondBy, p.ExpiresAt,
 	).Scan(
 		&plan.ID, &plan.Slug, &customSlug, &plan.Title, &plan.Location,
 		&plan.DateRangeStart, &plan.DateRangeEnd, &plan.DurationMinutes,
 		&plan.Granularity, &plan.Status, &plan.Timezone, &customOptions,
-		&finalStart, &finalEnd,
+		&finalStart, &finalEnd, &respondBy,
 		&plan.CreatedAt, &plan.UpdatedAt, &plan.ExpiresAt,
 	)
 	if err != nil {
@@ -71,6 +72,9 @@ func (r *PlanRepository) Create(ctx context.Context, p CreatePlanParams) (*model
 	if finalEnd.Valid {
 		plan.FinalizedSlotEnd = &finalEnd.String
 	}
+	if respondBy.Valid {
+		plan.RespondBy = &respondBy.String
+	}
 	plan.Participants = []model.Participant{}
 
 	return &plan, nil
@@ -79,7 +83,7 @@ func (r *PlanRepository) Create(ctx context.Context, p CreatePlanParams) (*model
 func (r *PlanRepository) GetBySlug(ctx context.Context, slug string) (*model.Plan, error) {
 	query := `
 		SELECT id, slug, custom_slug, title, location, date_range_start, date_range_end,
-			duration_minutes, granularity, host_token, status, timezone, custom_options, finalized_slot_start, finalized_slot_end, created_at, updated_at, expires_at
+			duration_minutes, granularity, host_token, status, timezone, custom_options, finalized_slot_start, finalized_slot_end, respond_by, created_at, updated_at, expires_at
 		FROM plans
 		WHERE slug = ? OR custom_slug = ?
 		LIMIT 1`
@@ -87,13 +91,13 @@ func (r *PlanRepository) GetBySlug(ctx context.Context, slug string) (*model.Pla
 	var plan model.Plan
 	var customSlug sql.NullString
 	var customOptions sql.NullString
-	var finalStart, finalEnd sql.NullString
+	var finalStart, finalEnd, respondBy sql.NullString
 	var hostToken string
 	err := r.db.QueryRowContext(ctx, query, slug, slug).Scan(
 		&plan.ID, &plan.Slug, &customSlug, &plan.Title, &plan.Location,
 		&plan.DateRangeStart, &plan.DateRangeEnd, &plan.DurationMinutes,
 		&plan.Granularity, &hostToken, &plan.Status, &plan.Timezone, &customOptions,
-		&finalStart, &finalEnd,
+		&finalStart, &finalEnd, &respondBy,
 		&plan.CreatedAt, &plan.UpdatedAt, &plan.ExpiresAt,
 	)
 	if err != nil {
@@ -112,6 +116,9 @@ func (r *PlanRepository) GetBySlug(ctx context.Context, slug string) (*model.Pla
 	if finalEnd.Valid {
 		plan.FinalizedSlotEnd = &finalEnd.String
 	}
+	if respondBy.Valid {
+		plan.RespondBy = &respondBy.String
+	}
 
 	return &plan, nil
 }
@@ -119,7 +126,7 @@ func (r *PlanRepository) GetBySlug(ctx context.Context, slug string) (*model.Pla
 func (r *PlanRepository) GetByID(ctx context.Context, id int64) (*model.Plan, error) {
 	query := `
 		SELECT id, slug, custom_slug, title, location, date_range_start, date_range_end,
-			duration_minutes, granularity, host_token, status, timezone, custom_options, finalized_slot_start, finalized_slot_end, created_at, updated_at, expires_at
+			duration_minutes, granularity, host_token, status, timezone, custom_options, finalized_slot_start, finalized_slot_end, respond_by, created_at, updated_at, expires_at
 		FROM plans
 		WHERE id = ?
 		LIMIT 1`
@@ -127,13 +134,13 @@ func (r *PlanRepository) GetByID(ctx context.Context, id int64) (*model.Plan, er
 	var plan model.Plan
 	var customSlug sql.NullString
 	var customOptions sql.NullString
-	var finalStart, finalEnd sql.NullString
+	var finalStart, finalEnd, respondBy sql.NullString
 	var hostToken string
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&plan.ID, &plan.Slug, &customSlug, &plan.Title, &plan.Location,
 		&plan.DateRangeStart, &plan.DateRangeEnd, &plan.DurationMinutes,
 		&plan.Granularity, &hostToken, &plan.Status, &plan.Timezone, &customOptions,
-		&finalStart, &finalEnd,
+		&finalStart, &finalEnd, &respondBy,
 		&plan.CreatedAt, &plan.UpdatedAt, &plan.ExpiresAt,
 	)
 	if err != nil {
@@ -151,6 +158,9 @@ func (r *PlanRepository) GetByID(ctx context.Context, id int64) (*model.Plan, er
 	}
 	if finalEnd.Valid {
 		plan.FinalizedSlotEnd = &finalEnd.String
+	}
+	if respondBy.Valid {
+		plan.RespondBy = &respondBy.String
 	}
 
 	return &plan, nil

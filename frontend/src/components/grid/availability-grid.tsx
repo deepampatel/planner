@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Plan, CellState } from '@/lib/types'
 import { useAvailability } from '@/hooks/use-availability'
+import { generateTimeSlots, generateDayBlocks } from '@/lib/slot-utils'
+import { toast } from 'sonner'
 import { useGridInteraction } from '@/hooks/use-grid-interaction'
 import { TimeGrid } from './time-grid'
 import { DayGrid } from './day-grid'
@@ -90,6 +92,38 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
     updateCell(slotStart, slotEnd, status)
   }, [isLocked, editToken, updateCell, previewMode, onPreviewTap])
 
+  // One tap for flexible people: mark every slot in the plan as free.
+  // Accidental taps are covered by the Undo action, which restores the
+  // exact prior state of every cell (including cleared ones).
+  const handleAnyTimeWorks = useCallback(() => {
+    if (isLocked || !editToken) return
+    const slots = plan.granularity === 'day'
+      ? generateDayBlocks(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone)
+      : generateTimeSlots(plan.dateRangeStart, plan.dateRangeEnd, plan.timezone)
+
+    const snapshot = slots.map(slot => ({
+      slot,
+      prev: getCellState(`${slot.start}|${slot.end}`),
+    }))
+
+    for (const slot of slots) {
+      updateCell(slot.start, slot.end, 'free')
+    }
+
+    toast.success('Marked every slot as free', {
+      duration: 6000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          for (const { slot, prev } of snapshot) {
+            updateCell(slot.start, slot.end, prev)
+          }
+          toast.success('Restored your availability')
+        },
+      },
+    })
+  }, [isLocked, editToken, plan.granularity, plan.dateRangeStart, plan.dateRangeEnd, plan.timezone, updateCell, getCellState])
+
   const { handlePointerDown, handlePointerMove, handlePointerEnter, handlePointerUp, isDragging, dragMode } = useGridInteraction(
     getCellState,
     handleCellUpdate
@@ -166,11 +200,24 @@ export function AvailabilityGrid({ plan, editToken, isHost, onRefresh, isRefresh
       </div>
       )}
 
-      {/* Interaction hint */}
+      {/* Interaction hint + flexible shortcut */}
       {!previewMode && viewMode === 'my' && editToken && !isLocked && (
-        <p className="text-tiny text-tertiary mb-3">
-          {isOptions ? 'Tap to vote' : 'Tap where you\u2019re free'}
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-tiny text-tertiary">
+            {isOptions ? 'Tap to vote' : 'Tap where you\u2019re free'}
+          </p>
+          {!isOptions && (
+            <button
+              onClick={handleAnyTimeWorks}
+              className="flex items-center gap-1.5 text-tiny font-medium text-muted-foreground border border-border rounded-full px-3 py-1.5 hover:text-emerald-800 hover:border-cell-free/50 hover:bg-cell-free/10 dark:hover:text-emerald-300 transition-colors"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              Any time works
+            </button>
+          )}
+        </div>
       )}
 
       {viewMode === 'group' ? (
